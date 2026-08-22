@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "defaultProvider": "unpkg",
+  "libraries": [
+    {
+      "provider": "cdnjs",
+      "library": "microsoft-signalr@8.0.17",
+      "destination": "src/EventHub.Web/wwwroot/vendor",
+      "files": [
+        "signalr.min.js"
+      ]
+    }
+  ]
+}

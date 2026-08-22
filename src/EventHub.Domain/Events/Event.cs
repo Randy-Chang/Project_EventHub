@@ -1,0 +1,102 @@
+using EventHub.Domain.Common;
+
+namespace EventHub.Domain.Events;
+
+public sealed class Event
+{
+    private Event()
+    {
+    }
+
+    private Event(
+        Guid id,
+        string name,
+        DateTimeOffset eventDateUtc,
+        string hostCredentialHash,
+        DateTimeOffset createdAtUtc)
+    {
+        Id = id;
+        Name = name;
+        EventDateUtc = eventDateUtc;
+        HostCredentialHash = hostCredentialHash;
+        CreatedAtUtc = createdAtUtc;
+        State = EventState.Draft;
+        IsJoinOpen = true;
+        Version = 1;
+    }
+
+    public Guid Id { get; private set; }
+
+    public string Name { get; private set; } = string.Empty;
+
+    public DateTimeOffset EventDateUtc { get; private set; }
+
+    public EventState State { get; private set; }
+
+    public bool IsJoinOpen { get; private set; }
+
+    public string HostCredentialHash { get; private set; } = string.Empty;
+
+    public DateTimeOffset CreatedAtUtc { get; private set; }
+
+    public long Version { get; private set; }
+
+    public static Event Create(
+        string name,
+        DateTimeOffset eventDateUtc,
+        string hostCredentialHash,
+        DateTimeOffset createdAtUtc)
+    {
+        var normalizedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            throw new DomainValidationException("活動名稱不可為空白。");
+        }
+
+        if (normalizedName.Length > 200)
+        {
+            throw new DomainValidationException("活動名稱不可超過 200 個字元。");
+        }
+
+        if (string.IsNullOrWhiteSpace(hostCredentialHash))
+        {
+            throw new DomainValidationException("Host credential 不可為空白。");
+        }
+
+        return new Event(Guid.NewGuid(), normalizedName, eventDateUtc, hostCredentialHash, createdAtUtc);
+    }
+
+    public void SetJoinOpen(bool isOpen)
+    {
+        if (State is EventState.Ended or EventState.Cancelled)
+        {
+            throw new DomainValidationException("已結束或取消的活動不可變更加入設定。");
+        }
+
+        IsJoinOpen = isOpen;
+        Version++;
+    }
+
+    public void Start()
+    {
+        if (State is not (EventState.Draft or EventState.Ready))
+        {
+            throw new DomainValidationException("只有 Draft 或 Ready 活動可以開始。");
+        }
+
+        State = EventState.Running;
+        Version++;
+    }
+
+    public void End()
+    {
+        if (State != EventState.Running)
+        {
+            throw new DomainValidationException("只有進行中的活動可以結束。");
+        }
+
+        State = EventState.Ended;
+        IsJoinOpen = false;
+        Version++;
+    }
+}

@@ -1,0 +1,1 @@
+EventHub Server static root. Guest assets are supplied by EventHub.Web.

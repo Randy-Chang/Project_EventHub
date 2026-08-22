@@ -6,6 +6,10 @@
 # User-specific files
 *.rsuser
 *.suo
+
+# EventHub runtime and local smoke-test data
+**/Data/
+.smoke-data/
 *.user
 *.userosscache
 *.sln.docstates
