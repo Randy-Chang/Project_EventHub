@@ -147,10 +147,22 @@ internal sealed class EventHubHostClient : IAsyncDisposable
         CancellationToken cancellationToken = default) =>
         UploadQuestionBankAsync<QuestionBankImportResultView>("quiz-import", filePath, cancellationToken);
 
-    public async Task<byte[]> DownloadQuestionBankTemplateAsync(CancellationToken cancellationToken = default)
+    public Task<QuestionBankImportResultView> EnsureDefaultPracticeAsync(
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<QuestionBankImportResultView>(
+            HttpMethod.Post,
+            $"api/v1/events/{eventId:D}/quiz/default-practice",
+            new { },
+            cancellationToken);
+
+    public async Task<byte[]> DownloadQuestionBankTemplateAsync(
+        string serverBaseUrl,
+        CancellationToken cancellationToken = default)
     {
-        using var request = CreateRequest(HttpMethod.Get, $"api/v1/events/{eventId:D}/quiz-import/template", true);
-        using var response = await httpClient.SendAsync(request, cancellationToken);
+        var baseUri = ParseServerUri(serverBaseUrl);
+        using var response = await httpClient.GetAsync(
+            new Uri(baseUri, "api/v1/quiz-import/template"),
+            cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return await response.Content.ReadAsByteArrayAsync(cancellationToken);
     }

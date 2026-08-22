@@ -52,9 +52,11 @@ partial class QuestionBankImportPreviewForm
             new DataGridViewTextBoxColumn { HeaderText = "Key" },
             new DataGridViewTextBoxColumn { HeaderText = "分類" },
             new DataGridViewTextBoxColumn { HeaderText = "難度" },
+            new DataGridViewTextBoxColumn { HeaderText = "模式" },
             new DataGridViewTextBoxColumn { HeaderText = "題目", FillWeight = 220 },
             new DataGridViewTextBoxColumn { HeaderText = "答案" },
-            new DataGridViewTextBoxColumn { HeaderText = "秒數" });
+            new DataGridViewTextBoxColumn { HeaderText = "秒數" },
+            new DataGridViewTextBoxColumn { HeaderText = "答案說明", FillWeight = 160 });
         questionGrid.Location = new Point(16, 76);
         questionGrid.Name = "questionGrid";
         questionGrid.ReadOnly = true;

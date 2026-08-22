@@ -77,12 +77,25 @@ public sealed class QuestionBankValidator
             Add(row, "Difficulty", "Difficulty 必須為 Easy、Medium 或 Hard。", issues);
         }
 
+        var modeText = row.Mode.Trim();
+        var mode = QuizQuestionMode.Scored;
+        if (!Enum.GetNames<QuizQuestionMode>().Contains(modeText, StringComparer.OrdinalIgnoreCase) ||
+            !Enum.TryParse(modeText, true, out mode))
+        {
+            Add(row, "Mode", "Mode 必須為 Practice 或 Scored。", issues);
+        }
+
         if (!int.TryParse(row.Order.Trim(), out var order) || order < 1)
         {
             Add(row, "Order", "Order 必須為大於等於 1 的整數。", issues);
         }
 
         var question = Required(row, row.Question, "Question", 500, issues);
+        var explanation = row.Explanation.Trim();
+        if (explanation.Length > 1000)
+        {
+            Add(row, "Explanation", "Explanation 不可超過 1000 個字元。", issues);
+        }
         var options = new[]
         {
             Required(row, row.OptionA, "OptionA", 200, issues),
@@ -121,8 +134,10 @@ public sealed class QuestionBankValidator
                 key,
                 category,
                 difficulty,
+                mode,
                 order,
                 question,
+                string.IsNullOrWhiteSpace(explanation) ? null : explanation,
                 options,
                 correctIndex,
                 duration));

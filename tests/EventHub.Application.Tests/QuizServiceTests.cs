@@ -5,6 +5,7 @@ using EventHub.Application.Participants;
 using EventHub.Application.Quizzes;
 using EventHub.Domain.Participants;
 using EventHub.Domain.Quizzes;
+using System.Text.Json;
 using DomainEvent = EventHub.Domain.Events.Event;
 
 namespace EventHub.Application.Tests;
@@ -158,6 +159,8 @@ public sealed class QuizServiceTests
 
         Assert.Equal(stateValue, state.State);
         Assert.Null(state.CorrectOptionId);
+        Assert.Null(state.Explanation);
+        Assert.DoesNotContain("Explanation", JsonSerializer.Serialize(state), StringComparison.OrdinalIgnoreCase);
         Assert.Null(state.IsCorrect);
         Assert.Null(state.QuestionScore);
         Assert.Null(state.TotalScore);
@@ -202,6 +205,66 @@ public sealed class QuizServiceTests
             result => result.ParticipantId == unansweredParticipant.Id);
         Assert.Equal(950, fixture.QuizRepository.Scores.Single(score => score.ParticipantId == fixture.Participant1.Id).TotalScore);
         Assert.Equal(0, fixture.QuizRepository.Scores.Single(score => score.ParticipantId == fixture.Participant2.Id).TotalScore);
+    }
+
+    [Fact]
+    public async Task Reveal_PracticeQuestionPersistsStatisticsWithoutChangingOfficialScoreOrLeaderboard()
+    {
+        var fixture = CreateFixture(
+            QuizQuestionState.Open,
+            QuizQuestionMode.Practice,
+            "這是一題操作練習。");
+        fixture.QuizRepository.LeaderboardRows[0] = fixture.QuizRepository.LeaderboardRows[0] with
+        {
+            TotalScore = 1200,
+            CorrectCount = 2,
+            AnsweredCount = 2
+        };
+        fixture.Clock.UtcNow = Now.AddSeconds(3);
+        _ = await fixture.SubmitAsync(
+            fixture.Participant1,
+            "participant-1-token",
+            fixture.Question.CorrectOptionId);
+        fixture.Session!.Close(Now.AddSeconds(20));
+        fixture.Clock.UtcNow = Now.AddSeconds(21);
+
+        _ = await fixture.Service.RevealAnswerAsync(
+            new QuizHostCommand(fixture.EventId, fixture.Session.Id, "host-token"),
+            CancellationToken.None);
+
+        var result = Assert.Single(fixture.QuizRepository.Results);
+        Assert.True(result.IsCorrect);
+        Assert.Equal(0, result.Score);
+        Assert.Empty(fixture.QuizRepository.Scores);
+        Assert.Equal(1200, fixture.QuizRepository.LeaderboardRows[0].TotalScore);
+        Assert.Equal(2, fixture.QuizRepository.LeaderboardRows[0].CorrectCount);
+        Assert.Equal(2, fixture.QuizRepository.LeaderboardRows[0].AnsweredCount);
+        var statistics = await fixture.ScoringService.GetSessionStatisticsAsync(
+            new QuizHostCommand(fixture.EventId, fixture.Session.Id, "host-token"),
+            CancellationToken.None);
+        Assert.Equal(1, statistics.AnsweredCount);
+        Assert.Equal(1, statistics.CorrectCount);
+    }
+
+    [Fact]
+    public async Task CurrentState_ExplanationAppearsOnlyAfterReveal()
+    {
+        var fixture = CreateFixture(
+            QuizQuestionState.Open,
+            QuizQuestionMode.Scored,
+            "因為二加二等於四。");
+
+        var open = await fixture.GetGuestStateAsync(fixture.Participant1, "participant-1-token");
+        fixture.Session!.Close(Now.AddSeconds(20));
+        var closed = await fixture.GetGuestStateAsync(fixture.Participant1, "participant-1-token");
+        fixture.Session.Reveal(Now.AddSeconds(21));
+        var revealed = await fixture.GetGuestStateAsync(fixture.Participant1, "participant-1-token");
+
+        Assert.Null(open.Explanation);
+        Assert.Null(closed.Explanation);
+        Assert.DoesNotContain("Explanation", JsonSerializer.Serialize(open), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Explanation", JsonSerializer.Serialize(closed), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("因為二加二等於四。", revealed.Explanation);
     }
 
     [Fact]
@@ -396,7 +459,10 @@ public sealed class QuizServiceTests
         Assert.Null(state.CorrectOptionId);
     }
 
-    private static Fixture CreateFixture(QuizQuestionState? sessionState)
+    private static Fixture CreateFixture(
+        QuizQuestionState? sessionState,
+        QuizQuestionMode mode = QuizQuestionMode.Scored,
+        string? explanation = null)
     {
         var clock = new MutableTimeProvider(Now);
         var credentials = new FakeCredentialService();
@@ -424,7 +490,12 @@ public sealed class QuizServiceTests
         var quiz = Quiz.Create(eventItem.Id, "Quiz", Now);
         var question = QuizQuestion.Create(
             quiz.Id,
+            "Q1",
+            "測試",
+            QuizQuestionDifficulty.Medium,
+            mode,
             "1 + 1 = ?",
+            explanation,
             ["1", "2", "3", "4"],
             1,
             TimeSpan.FromSeconds(20),
@@ -668,6 +739,21 @@ public sealed class QuizServiceTests
         public Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken) =>
             Task.FromResult(Questions.Count(question => question.QuizId == quizId));
 
+        public Task<QuizQuestionPosition> GetQuestionPositionAsync(
+            Guid quizId,
+            Guid questionId,
+            QuizQuestionMode mode,
+            CancellationToken cancellationToken)
+        {
+            var matching = Questions
+                .Where(question => question.QuizId == quizId && question.Mode == mode)
+                .OrderBy(question => question.Order)
+                .ToArray();
+            return Task.FromResult(new QuizQuestionPosition(
+                Array.FindIndex(matching, question => question.Id == questionId) + 1,
+                matching.Length));
+        }
+
         public Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken)
         {
             Questions.Add(question);
@@ -773,7 +859,28 @@ public sealed class QuizServiceTests
         public Task<QuizSessionStatisticsData?> GetSessionStatisticsAsync(
             Guid eventId,
             Guid questionSessionId,
-            CancellationToken cancellationToken) =>
-            Task.FromResult<QuizSessionStatisticsData?>(null);
+            CancellationToken cancellationToken)
+        {
+            if (Session is null || Session.Id != questionSessionId)
+            {
+                return Task.FromResult<QuizSessionStatisticsData?>(null);
+            }
+
+            var question = Questions.Single(item => item.Id == Session.QuestionId);
+            var answers = Answers.Where(answer => answer.QuestionSessionId == questionSessionId).ToArray();
+            var optionCounts = question.Options.OrderBy(option => option.Order)
+                .Select(option => new QuizOptionAnswerCount(
+                    option.Id,
+                    answers.Count(answer => answer.SelectedOptionId == option.Id)))
+                .ToArray();
+            var correctCount = answers.Count(answer => answer.SelectedOptionId == question.CorrectOptionId);
+            return Task.FromResult<QuizSessionStatisticsData?>(new QuizSessionStatisticsData(
+                Session.QuizId,
+                question.Id,
+                ParticipantCount: 2,
+                AnsweredCount: answers.Length,
+                CorrectCount: correctCount,
+                OptionCounts: optionCounts));
+        }
     }
 }

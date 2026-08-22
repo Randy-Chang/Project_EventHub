@@ -44,7 +44,7 @@ partial class QuestionBankView
         titleLabel.Dock = DockStyle.Top;
         titleLabel.Font = new Font("Microsoft JhengHei UI", 20F, FontStyle.Bold);
         titleLabel.Height = 58;
-        titleLabel.Text = "正式題庫";
+        titleLabel.Text = "題庫管理";
         commandPanel.Controls.Add(importButton);
         commandPanel.Controls.Add(exportTemplateButton);
         commandPanel.Controls.Add(refreshButton);
@@ -85,6 +85,7 @@ partial class QuestionBankView
             new DataGridViewTextBoxColumn { HeaderText = "Key", FillWeight = 75 },
             new DataGridViewTextBoxColumn { HeaderText = "分類", FillWeight = 70 },
             new DataGridViewTextBoxColumn { HeaderText = "難度", FillWeight = 55 },
+            new DataGridViewTextBoxColumn { HeaderText = "模式", FillWeight = 65 },
             new DataGridViewTextBoxColumn { HeaderText = "題目", FillWeight = 230 },
             new DataGridViewTextBoxColumn { HeaderText = "秒數", FillWeight = 45 },
             new DataGridViewTextBoxColumn { HeaderText = "狀態", FillWeight = 65 });

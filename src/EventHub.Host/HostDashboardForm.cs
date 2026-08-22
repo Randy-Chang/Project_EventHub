@@ -8,9 +8,7 @@ internal enum HostView
     Dashboard,
     Event,
     QuestionBank,
-    Quiz,
-    Results,
-    Display
+    Quiz
 }
 
 public partial class HostDashboardForm : Form
@@ -27,6 +25,7 @@ public partial class HostDashboardForm : Form
     private HostConnectionState connectionState = HostConnectionState.Disconnected;
     private DisplayMode displayMode = DisplayMode.Waiting;
     private CancellationTokenSource? deadlineRecoveryCancellation;
+    private QuizPrimaryAction currentPrimaryAction;
 
     public HostDashboardForm()
     {
@@ -34,7 +33,7 @@ public partial class HostDashboardForm : Form
         WireViewEvents();
         WireClientEvents();
         ShowView(HostView.Dashboard);
-        RenderContext();
+        RenderQuizState();
     }
 
     private void WireViewEvents()
@@ -46,9 +45,9 @@ public partial class HostDashboardForm : Form
         questionBankView.RefreshRequested += refreshQuestionBanksRequested;
         questionBankView.SelectedBankChanged += selectedQuestionBankChanged;
         questionBankView.SelectedQuestionChanged += selectedQuestionChanged;
-        quizControlView.PrimaryActionRequested += primaryQuizActionRequested;
-        quizControlView.ManualQuestionCreateRequested += createManualQuestionRequested;
-        displayControlView.DisplayModeRequested += displayModeRequested;
+        quizActivityView.SelectedQuestionChanged += quizActivitySelectedQuestionChanged;
+        quizActivityView.DefaultPracticeRequested += defaultPracticeRequested;
+        liveMonitorView.DisplayModeRequested += displayModeRequested;
     }
 
     private void WireClientEvents()
@@ -60,7 +59,7 @@ public partial class HostDashboardForm : Form
         client.DisplayModeChanged += mode => RunOnUi(() =>
         {
             displayMode = mode;
-            displayControlView.Render(mode);
+            liveMonitorView.RenderDisplayMode(mode);
             RenderContext();
         });
         client.ConnectionStateChanged += state => RunOnUi(() =>
@@ -78,6 +77,7 @@ public partial class HostDashboardForm : Form
             eventManagementView.SetBusy,
             async () =>
             {
+                ResetCurrentEventPresentation();
                 var result = await client.CreateEventAsync(
                     eventManagementView.ServerUrl,
                     eventManagementView.EventName,
@@ -97,6 +97,7 @@ public partial class HostDashboardForm : Form
             eventManagementView.SetBusy,
             async () =>
             {
+                ResetCurrentEventPresentation();
                 await ConnectAndRecoverAsync();
                 eventManagementView.SetStatus("已連線，正在監看活動。");
             });
@@ -128,7 +129,7 @@ public partial class HostDashboardForm : Form
         selectedQuestionId = quizState.QuestionId ?? selectedQuestionId;
         var displayState = await client.GetDisplayStateAsync();
         displayMode = displayState.Mode;
-        displayControlView.Render(displayMode);
+        liveMonitorView.RenderDisplayMode(displayMode);
         await LoadQuestionBanksAsync(selectedQuestionId: selectedQuestionId);
         RenderQuizState();
         if (quizState.State == QuizState.Revealed)
@@ -202,7 +203,7 @@ public partial class HostDashboardForm : Form
 
                 await File.WriteAllBytesAsync(
                     dialog.FileName,
-                    await client.DownloadQuestionBankTemplateAsync());
+                    await client.DownloadQuestionBankTemplateAsync(eventManagementView.ServerUrl));
                 questionBankView.SetStatus($"已匯出範本：{dialog.FileName}");
             });
     }
@@ -216,6 +217,20 @@ public partial class HostDashboardForm : Form
             {
                 await LoadQuestionBanksAsync(questionBankView.SelectedBank?.Id, selectedQuestionId);
                 questionBankView.SetStatus("題庫已重新整理。");
+            });
+    }
+
+    private async void defaultPracticeRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            SetActionStatus,
+            SetPrimaryActionBusy,
+            async () =>
+            {
+                var result = await client.EnsureDefaultPracticeAsync();
+                await LoadQuestionBanksAsync(result.QuizId);
+                ShowView(HostView.Quiz);
+                SetActionStatus("內建熱身已就緒，請按「開始本題」。");
             });
     }
 
@@ -241,8 +256,21 @@ public partial class HostDashboardForm : Form
 
         selectedQuestionId = selected.Id;
         currentQuizTitle = questionBankView.SelectedBank?.Title ?? currentQuizTitle;
+        quizActivityView.RenderQuestions(questions, selectedQuestionId);
         RenderQuizState();
         RenderContext();
+    }
+
+    private void quizActivitySelectedQuestionChanged(object? sender, EventArgs e)
+    {
+        var selected = quizActivityView.SelectedQuestion;
+        if (selected is null)
+        {
+            return;
+        }
+
+        selectedQuestionId = selected.Id;
+        RenderQuizState();
     }
 
     private async Task LoadQuestionBanksAsync(Guid? selectedQuizId = null, Guid? selectedQuestionId = null)
@@ -260,6 +288,7 @@ public partial class HostDashboardForm : Form
         {
             questions = [];
             currentQuizTitle = "尚未選擇";
+            quizActivityView.RenderQuestions([], null);
             RenderContext();
             return;
         }
@@ -268,6 +297,7 @@ public partial class HostDashboardForm : Form
         currentQuizTitle = selectedBank.Title;
         questionBankView.RenderQuestions(questions, targetQuestionId ?? selectedQuestionId);
         selectedQuestionId = questionBankView.SelectedQuestion?.Id ?? selectedQuestionId;
+        quizActivityView.RenderQuestions(questions, selectedQuestionId);
         RenderQuizState();
         RenderContext();
     }
@@ -275,11 +305,11 @@ public partial class HostDashboardForm : Form
     private async void primaryQuizActionRequested(object? sender, EventArgs e)
     {
         await RunViewOperationAsync(
-            quizControlView.SetStatus,
-            quizControlView.SetBusy,
+            SetActionStatus,
+            SetPrimaryActionBusy,
             async () =>
             {
-                switch (quizControlView.CurrentAction)
+                switch (currentPrimaryAction)
                 {
                     case QuizPrimaryAction.Start:
                         if (!selectedQuestionId.HasValue)
@@ -299,11 +329,25 @@ public partial class HostDashboardForm : Form
                         await RefreshResultsAsync();
                         break;
                     case QuizPrimaryAction.Next:
-                        if (!questionBankView.MoveSelection(1))
+                        if (!quizState.Mode.HasValue || !quizActivityView.MoveToNextInMode(quizState.Mode.Value))
                         {
-                            throw new InvalidOperationException("題庫中沒有下一題。");
+                            throw new InvalidOperationException("此模式沒有下一題。");
                         }
-
+                        selectedQuestionId = quizActivityView.SelectedQuestion?.Id;
+                        quizActivityView.ShowQuestion();
+                        break;
+                    case QuizPrimaryAction.StartOfficial:
+                        if (!quizActivityView.SelectFirst(QuizQuestionMode.Scored))
+                        {
+                            throw new InvalidOperationException("題庫中沒有正式題。");
+                        }
+                        selectedQuestionId = quizActivityView.SelectedQuestion?.Id;
+                        quizState = await client.StartQuestionAsync(selectedQuestionId!.Value);
+                        quizActivityView.ShowQuestion();
+                        break;
+                    case QuizPrimaryAction.FinalLeaderboard:
+                        await SetDisplayModeAsync(DisplayMode.Leaderboard);
+                        quizActivityView.ShowFinalLeaderboard();
                         break;
                     default:
                         throw new InvalidOperationException("目前沒有可執行的 Quiz 操作。");
@@ -311,43 +355,8 @@ public partial class HostDashboardForm : Form
 
                 await RefreshQuestionStatusesAsync();
                 RenderQuizState();
-                quizControlView.SetStatus("操作完成。");
+                SetActionStatus("操作完成。");
             });
-    }
-
-    private async void createManualQuestionRequested(object? sender, EventArgs e)
-    {
-        await RunViewOperationAsync(
-            quizControlView.SetStatus,
-            quizControlView.SetBusy,
-            async () =>
-            {
-                var created = await client.CreateQuestionAsync(quizControlView.BuildManualQuestionRequest());
-                await SelectQuestionAcrossBanksAsync(created.Id);
-                quizControlView.SetStatus($"已建立手動題目：{created.Text}");
-            });
-    }
-
-    private async Task SelectQuestionAcrossBanksAsync(Guid questionId)
-    {
-        questionBanks = await client.GetQuestionBanksAsync();
-        foreach (var bank in questionBanks)
-        {
-            var bankQuestions = await client.GetQuestionsAsync(bank.Id);
-            if (bankQuestions.Any(question => question.Id == questionId))
-            {
-                questionBankView.RenderBanks(questionBanks, bank.Id);
-                questions = bankQuestions;
-                questionBankView.RenderQuestions(bankQuestions, questionId);
-                selectedQuestionId = questionId;
-                currentQuizTitle = bank.Title;
-                RenderQuizState();
-                RenderContext();
-                return;
-            }
-        }
-
-        throw new InvalidOperationException("題目已建立，但重新載入題庫時找不到該題目。");
     }
 
     private async Task RefreshQuizStateAsync()
@@ -372,10 +381,7 @@ public partial class HostDashboardForm : Form
 
     private void RenderQuizState()
     {
-        var selected = questionBankView.SelectedQuestion;
-        var position = selected is null || questions.Count == 0
-            ? "— / —"
-            : $"{GetQuestionIndex(selected) + 1:00} / {questions.Count:00}";
+        var selected = quizActivityView.SelectedQuestion;
         var stateForPresentation = quizState;
         if (quizState.State == QuizState.Revealed && selected?.Id != quizState.QuestionId)
         {
@@ -389,18 +395,34 @@ public partial class HostDashboardForm : Form
                 StartedAtUtc = null,
                 AnswerDeadlineUtc = null,
                 AnsweredCount = 0,
-                CorrectOptionId = null
+                CorrectOptionId = null,
+                Explanation = null
             };
         }
 
-        quizControlView.Render(
-            currentQuizTitle,
-            position,
-            selected,
-            stateForPresentation,
-            questionBankView.HasNextQuestion);
+        quizActivityView.RenderQuestion(currentQuizTitle, stateForPresentation);
+        var mode = stateForPresentation.Mode ?? selected?.Mode;
+        var hasNext = mode.HasValue && quizActivityView.HasNextInMode(mode.Value);
+        var presentation = QuizActionPresentation.Resolve(
+            stateForPresentation.State,
+            selected is not null || stateForPresentation.QuestionId.HasValue,
+            mode,
+            hasNext,
+            quizActivityView.HasScoredQuestions);
+        currentPrimaryAction = presentation.Action;
+        primaryActionButton.Text = presentation.ButtonText;
+        primaryActionButton.Enabled = presentation.IsEnabled;
+        actionGuidanceLabel.Text = presentation.Guidance;
+        actionContextLabel.Text = selected is null
+            ? "尚未選擇題庫"
+            : $"{(selected.Mode == QuizQuestionMode.Practice ? "PRACTICE" : "SCORED")}｜{selected.Text}";
+        quizActivityView.SetDefaultPracticeAvailability(
+            !quizActivityView.HasPracticeQuestions,
+            connectionState == HostConnectionState.Connected && quizState.State == QuizState.Waiting);
         var canNavigate = quizState.State is QuizState.Waiting or QuizState.Revealed;
         questionBankView.SetNavigationEnabled(canNavigate);
+        quizActivityView.SetNavigationEnabled(canNavigate);
+        liveMonitorView.Render(mode, GetQuestionPosition(selected), stateForPresentation, displayMode);
         ScheduleDeadlineRecovery(quizState);
         RenderContext();
     }
@@ -443,28 +465,38 @@ public partial class HostDashboardForm : Form
     {
         if (!quizState.SessionId.HasValue || quizState.State != QuizState.Revealed)
         {
-            quizResultView.Clear();
+            quizActivityView.ClearResult();
             return;
         }
 
         var statistics = await client.GetStatisticsAsync(quizState.SessionId.Value);
         var leaderboard = await client.GetLeaderboardAsync();
-        quizResultView.Render(statistics, leaderboard, quizState.CorrectOptionId);
+        quizActivityView.RenderResult(statistics, leaderboard, quizState.CorrectOptionId, quizState.Explanation);
+        if (quizState.Mode == QuizQuestionMode.Practice &&
+            !quizActivityView.HasNextInMode(QuizQuestionMode.Practice))
+        {
+            quizActivityView.ShowPracticeCompleted(statistics.ParticipantCount, statistics.AnsweredCount);
+        }
     }
 
     private async void displayModeRequested(DisplayMode mode)
     {
         await RunViewOperationAsync(
-            displayControlView.SetStatus,
-            displayControlView.SetBusy,
+            liveMonitorView.SetStatus,
+            liveMonitorView.SetDisplayBusy,
             async () =>
             {
-                var state = await client.SetDisplayModeAsync(mode);
-                displayMode = state.Mode;
-                displayControlView.Render(displayMode);
-                displayControlView.SetStatus($"大螢幕已切換至 {displayMode}。");
-                RenderContext();
+                await SetDisplayModeAsync(mode);
+                liveMonitorView.SetStatus($"大螢幕已切換至 {displayMode}。");
             });
+    }
+
+    private async Task SetDisplayModeAsync(DisplayMode mode)
+    {
+        var state = await client.SetDisplayModeAsync(mode);
+        displayMode = state.Mode;
+        liveMonitorView.RenderDisplayMode(displayMode);
+        RenderContext();
     }
 
     private void HandleParticipantChanged(ParticipantView participant)
@@ -487,16 +519,14 @@ public partial class HostDashboardForm : Form
             ParticipantCount = progress.ParticipantCount,
             OnlineCount = progress.OnlineCount
         };
-        quizControlView.UpdateProgress(progress);
+        quizActivityView.UpdateProgress(progress);
         RenderContext();
     }
 
     private void RenderContext()
     {
-        var selected = questionBankView.SelectedQuestion;
-        var position = selected is null || questions.Count == 0
-            ? "— / —"
-            : $"{GetQuestionIndex(selected) + 1} / {questions.Count}";
+        var selected = quizActivityView.SelectedQuestion;
+        var position = GetQuestionPosition(selected);
         currentEventHeaderLabel.Text = $"Current Event：{currentEventName}";
         currentQuizHeaderLabel.Text = $"Quiz：{currentQuizTitle}";
         participantHeaderLabel.Text = $"Participants {participants.Count}";
@@ -513,6 +543,9 @@ public partial class HostDashboardForm : Form
                 ? Color.Firebrick
                 : Color.DarkOrange;
         displayHeaderLabel.Text = $"Display: {displayMode}";
+        var hasQuiz = selected is not null || quizState.QuestionId.HasValue;
+        currentActivityHeaderLabel.Text = hasQuiz ? "Activity: Quiz" : "Activity: —";
+        activityStateHeaderLabel.Text = hasQuiz ? quizState.State.ToString().ToUpperInvariant() : "NO QUIZ";
         dashboardView.Render(
             currentEventName,
             currentQuizTitle,
@@ -536,17 +569,13 @@ public partial class HostDashboardForm : Form
         dashboardView.Visible = view == HostView.Dashboard;
         eventManagementView.Visible = view == HostView.Event;
         questionBankView.Visible = view == HostView.QuestionBank;
-        quizControlView.Visible = view == HostView.Quiz;
-        quizResultView.Visible = view == HostView.Results;
-        displayControlView.Visible = view == HostView.Display;
+        quizActivityView.Visible = view == HostView.Quiz;
         var selectedControl = view switch
         {
             HostView.Dashboard => (Control)dashboardView,
             HostView.Event => eventManagementView,
             HostView.QuestionBank => questionBankView,
-            HostView.Quiz => quizControlView,
-            HostView.Results => quizResultView,
-            HostView.Display => displayControlView,
+            HostView.Quiz => quizActivityView,
             _ => dashboardView
         };
         selectedControl.BringToFront();
@@ -582,17 +611,49 @@ public partial class HostDashboardForm : Form
     private Guid GetCurrentSessionId() => quizState.SessionId
         ?? throw new InvalidOperationException("目前沒有題目場次。");
 
-    private int GetQuestionIndex(QuestionBankQuestionView question)
+    private string GetQuestionPosition(QuestionBankQuestionView? question)
     {
-        for (var index = 0; index < questions.Count; index++)
+        if (question is null)
         {
-            if (questions[index].Id == question.Id)
-            {
-                return index;
-            }
+            return "— / —";
         }
 
-        return -1;
+        var modeQuestions = questions.Where(item => item.Mode == question.Mode).ToArray();
+        var index = Array.FindIndex(modeQuestions, item => item.Id == question.Id);
+        var prefix = question.Mode == QuizQuestionMode.Practice ? "P" : "Q";
+        return index < 0 ? "— / —" : $"{prefix}{index + 1} / {modeQuestions.Length}";
+    }
+
+    private void primaryActionButton_Click(object? sender, EventArgs e) =>
+        primaryQuizActionRequested(sender, e);
+
+    private void SetPrimaryActionBusy(bool isBusy)
+    {
+        primaryActionButton.Enabled = !isBusy && currentPrimaryAction != QuizPrimaryAction.None;
+    }
+
+    private void SetActionStatus(string message, bool isError = false)
+    {
+        actionStatusLabel.Text = message;
+        actionStatusLabel.ForeColor = isError ? Color.Firebrick : Color.DarkGreen;
+    }
+
+    private void ResetCurrentEventPresentation()
+    {
+        participants.Clear();
+        questionBanks = [];
+        questions = [];
+        quizState = CreateWaitingState();
+        selectedQuestionId = null;
+        currentEventName = "尚未選擇";
+        currentQuizTitle = "尚未選擇";
+        displayMode = DisplayMode.Waiting;
+        eventManagementView.ResetCurrentContext();
+        questionBankView.RenderBanks([], null);
+        quizActivityView.RenderQuestions([], null);
+        quizActivityView.ClearResult();
+        liveMonitorView.RenderDisplayMode(displayMode);
+        RenderQuizState();
     }
 
     private void RunOnUi(Action action)
@@ -621,7 +682,7 @@ public partial class HostDashboardForm : Form
             }
             catch (Exception exception)
             {
-                quizControlView.SetStatus($"狀態同步失敗：{exception.Message}", true);
+                SetActionStatus($"狀態同步失敗：{exception.Message}", true);
             }
         });
     }
@@ -634,5 +695,5 @@ public partial class HostDashboardForm : Form
     }
 
     private static QuizStateView CreateWaitingState() =>
-        new(QuizState.Waiting, null, null, null, [], null, null, 0, 0, 0, null);
+        new(QuizState.Waiting, null, null, null, null, [], null, null, 0, 0, 0, null, null);
 }

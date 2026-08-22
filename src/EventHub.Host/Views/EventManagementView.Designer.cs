@@ -22,6 +22,7 @@ partial class EventManagementView
         createEventButton = new Button();
         connectButton = new Button();
         statusLabel = new Label();
+        operationMessagePanel = new Panel();
         joinGroupBox = new GroupBox();
         joinTableLayoutPanel = new TableLayoutPanel();
         eventInfoValueLabel = new Label();
@@ -33,6 +34,7 @@ partial class EventManagementView
         participantGrid = new DataGridView();
         setupGroupBox.SuspendLayout();
         setupTableLayoutPanel.SuspendLayout();
+        operationMessagePanel.SuspendLayout();
         joinGroupBox.SuspendLayout();
         joinTableLayoutPanel.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)joinQrCodePictureBox).BeginInit();
@@ -89,16 +91,13 @@ partial class EventManagementView
         setupTableLayoutPanel.Controls.Add(hostTokenTextBox, 3, 2);
         setupTableLayoutPanel.Controls.Add(createEventButton, 1, 3);
         setupTableLayoutPanel.Controls.Add(connectButton, 3, 3);
-        setupTableLayoutPanel.Controls.Add(statusLabel, 0, 4);
-        setupTableLayoutPanel.SetColumnSpan(statusLabel, 4);
         setupTableLayoutPanel.Dock = DockStyle.Fill;
         setupTableLayoutPanel.Padding = new Padding(12);
-        setupTableLayoutPanel.RowCount = 5;
+        setupTableLayoutPanel.RowCount = 4;
         setupTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
         setupTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
         setupTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32F));
         setupTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 36F));
-        setupTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
         serverUrlLabel.Text = "Server URL";
         serverUrlLabel.TextAlign = ContentAlignment.MiddleLeft;
         serverUrlTextBox.Dock = DockStyle.Fill;
@@ -125,9 +124,17 @@ partial class EventManagementView
         connectButton.Dock = DockStyle.Fill;
         connectButton.Text = "連線既有活動";
         connectButton.Click += connectButton_Click;
-        statusLabel.AutoEllipsis = true;
+        operationMessagePanel.BackColor = Color.FromArgb(241, 248, 245);
+        operationMessagePanel.Controls.Add(statusLabel);
+        operationMessagePanel.Dock = DockStyle.Top;
+        operationMessagePanel.Height = 62;
+        operationMessagePanel.Name = "operationMessagePanel";
+        operationMessagePanel.Padding = new Padding(12, 8, 12, 8);
+        statusLabel.AutoEllipsis = false;
+        statusLabel.AutoSize = false;
         statusLabel.Dock = DockStyle.Fill;
         statusLabel.Text = "尚未連線";
+        statusLabel.TextAlign = ContentAlignment.MiddleLeft;
         joinGroupBox.Controls.Add(joinTableLayoutPanel);
         joinGroupBox.Dock = DockStyle.Top;
         joinGroupBox.Height = 210;
@@ -182,6 +189,7 @@ partial class EventManagementView
         BackColor = Color.White;
         Controls.Add(participantsGroupBox);
         Controls.Add(joinGroupBox);
+        Controls.Add(operationMessagePanel);
         Controls.Add(setupGroupBox);
         Controls.Add(titleLabel);
         Name = "EventManagementView";
@@ -190,6 +198,7 @@ partial class EventManagementView
         setupGroupBox.ResumeLayout(false);
         setupTableLayoutPanel.ResumeLayout(false);
         setupTableLayoutPanel.PerformLayout();
+        operationMessagePanel.ResumeLayout(false);
         joinGroupBox.ResumeLayout(false);
         joinTableLayoutPanel.ResumeLayout(false);
         joinTableLayoutPanel.PerformLayout();
@@ -215,6 +224,7 @@ partial class EventManagementView
     private Button createEventButton;
     private Button connectButton;
     private Label statusLabel;
+    private Panel operationMessagePanel;
     private GroupBox joinGroupBox;
     private TableLayoutPanel joinTableLayoutPanel;
     private Label eventInfoValueLabel;

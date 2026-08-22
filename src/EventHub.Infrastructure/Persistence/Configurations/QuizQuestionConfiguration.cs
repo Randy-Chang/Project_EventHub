@@ -13,7 +13,9 @@ internal sealed class QuizQuestionConfiguration : IEntityTypeConfiguration<QuizQ
         builder.Property(question => question.QuestionKey).HasMaxLength(50).UseCollation("NOCASE").IsRequired();
         builder.Property(question => question.Category).HasMaxLength(100);
         builder.Property(question => question.Difficulty).HasConversion<string>().HasMaxLength(20).IsRequired();
+        builder.Property(question => question.Mode).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(question => question.Text).HasMaxLength(500).IsRequired();
+        builder.Property(question => question.Explanation).HasMaxLength(1000);
         builder.Property(question => question.AnswerDuration)
             .HasConversion(value => value.Ticks, value => TimeSpan.FromTicks(value));
         builder.Property(question => question.CorrectOptionId).IsRequired();

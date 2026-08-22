@@ -49,6 +49,10 @@ public sealed class QuizScoringService(
                         snapshot.Session.StartedAtUtc.Value,
                         snapshot.Session.AnswerDeadlineUtc.Value,
                         answer.SubmittedAtUtc);
+                    if (snapshot.Question.Mode == QuizQuestionMode.Practice)
+                    {
+                        calculation = calculation with { BaseScore = 0, SpeedBonus = 0, Score = 0 };
+                    }
                     var result = ParticipantQuestionResult.Create(
                         snapshot.Session.EventId,
                         snapshot.Session.QuizId,
@@ -57,6 +61,11 @@ public sealed class QuizScoringService(
                         calculation,
                         nowUtc);
                     results.Add(result);
+
+                    if (snapshot.Question.Mode == QuizQuestionMode.Practice)
+                    {
+                        continue;
+                    }
 
                     if (!scoreByParticipant.TryGetValue(answer.ParticipantId, out var participantScore))
                     {

@@ -12,7 +12,8 @@ public static class QuestionBankImportLimits
     public static readonly string[] RequiredHeaders =
     [
         "QuestionKey", "QuizTitle", "Category", "Difficulty", "Order", "Question",
-        "OptionA", "OptionB", "OptionC", "OptionD", "CorrectOption", "DurationSeconds"
+        "OptionA", "OptionB", "OptionC", "OptionD", "CorrectOption", "DurationSeconds",
+        "Explanation", "Mode"
     ];
 }
 
@@ -42,7 +43,9 @@ public sealed record QuestionBankRawRow(
     string OptionC,
     string OptionD,
     string CorrectOption,
-    string DurationSeconds);
+    string DurationSeconds,
+    string Explanation,
+    string Mode);
 
 public sealed record QuestionBankParseResult(
     IReadOnlyList<QuestionBankRawRow> Rows,
@@ -53,8 +56,10 @@ public sealed record ValidatedQuestionBankRow(
     string QuestionKey,
     string Category,
     QuizQuestionDifficulty Difficulty,
+    QuizQuestionMode Mode,
     int Order,
     string Question,
+    string? Explanation,
     IReadOnlyList<string> Options,
     int CorrectOptionIndex,
     int DurationSeconds);
@@ -87,8 +92,10 @@ public sealed record QuestionBankQuestionSummary(
     string QuestionKey,
     string? Category,
     QuizQuestionDifficulty Difficulty,
+    QuizQuestionMode Mode,
     int Order,
     string Text,
+    string? Explanation,
     IReadOnlyList<QuizOptionSummary> Options,
     int CorrectOptionIndex,
     int DurationSeconds,

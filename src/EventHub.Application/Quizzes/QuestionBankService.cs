@@ -9,7 +9,8 @@ public sealed class QuestionBankService(
     IQuestionBankRepository repository,
     EventService eventService,
     QuestionBankValidator validator,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    DefaultPracticeQuestionProvider defaultPracticeQuestionProvider)
 {
     public Task AuthorizeAsync(Guid eventId, string hostToken, CancellationToken cancellationToken) =>
         EnsureAuthorizedAsync(eventId, hostToken, cancellationToken);
@@ -67,13 +68,48 @@ public sealed class QuestionBankService(
             row.QuestionKey,
             row.Category,
             row.Difficulty,
+            row.Mode,
             row.Question,
+            row.Explanation,
             row.Options,
             row.CorrectOptionIndex,
             TimeSpan.FromSeconds(row.DurationSeconds),
             row.Order)).ToArray();
         await repository.ImportAsync(quiz, questions, cancellationToken);
         return new QuestionBankImportResult(quiz.Id, quiz.Title, questions.Length, importedAtUtc);
+    }
+
+    public async Task<QuestionBankImportResult> EnsureDefaultPracticeAsync(
+        Guid eventId,
+        string hostToken,
+        CancellationToken cancellationToken)
+    {
+        await EnsureAuthorizedAsync(eventId, hostToken, cancellationToken);
+        var existing = (await repository.ListAsync(eventId, cancellationToken))
+            .FirstOrDefault(item => item.Title == DefaultPracticeQuestionProvider.QuizTitle);
+        if (existing is not null)
+        {
+            return new QuestionBankImportResult(existing.Id, existing.Title, existing.QuestionCount, existing.CreatedAtUtc);
+        }
+
+        var createdAtUtc = timeProvider.GetUtcNow();
+        var quiz = Quiz.Create(eventId, DefaultPracticeQuestionProvider.QuizTitle, createdAtUtc);
+        var questions = defaultPracticeQuestionProvider.GetQuestions()
+            .Select((item, index) => QuizQuestion.Create(
+                quiz.Id,
+                item.QuestionKey,
+                "操作教學",
+                QuizQuestionDifficulty.Easy,
+                item.Mode,
+                item.Text,
+                item.Explanation,
+                item.Options,
+                item.CorrectOptionIndex,
+                TimeSpan.FromSeconds(item.DurationSeconds),
+                index + 1))
+            .ToArray();
+        await repository.ImportAsync(quiz, questions, cancellationToken);
+        return new QuestionBankImportResult(quiz.Id, quiz.Title, questions.Length, createdAtUtc);
     }
 
     public async Task<IReadOnlyList<QuestionBankSummary>> ListAsync(
@@ -109,8 +145,10 @@ public sealed class QuestionBankService(
                     question.QuestionKey,
                     question.Category,
                     question.Difficulty,
+                    question.Mode,
                     question.Order,
                     question.Text,
+                    question.Explanation,
                     options.Select(option => new QuizOptionSummary(option.Id, option.Text, option.Order)).ToArray(),
                     Array.FindIndex(options, option => option.Id == question.CorrectOptionId),
                     (int)question.AnswerDuration.TotalSeconds,

@@ -1,4 +1,5 @@
 using EventHub.Domain.Quizzes;
+using System.Text.Json.Serialization;
 
 namespace EventHub.Application.Quizzes;
 
@@ -15,7 +16,8 @@ public sealed record QuizQuestionSummary(
     string Text,
     IReadOnlyList<QuizOptionSummary> Options,
     int AnswerDurationSeconds,
-    int Order);
+    int Order,
+    QuizQuestionMode Mode);
 
 public sealed record QuizOptionSummary(Guid Id, string Text, int Order);
 
@@ -48,6 +50,7 @@ public sealed record CurrentQuizState(
     QuizQuestionState State,
     Guid? SessionId,
     Guid? QuestionId,
+    QuizQuestionMode? Mode,
     string? QuestionText,
     IReadOnlyList<QuizOptionSummary> Options,
     DateTimeOffset? StartedAtUtc,
@@ -58,6 +61,8 @@ public sealed record CurrentQuizState(
     Guid? SelectedOptionId,
     bool HasAnswered,
     Guid? CorrectOptionId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Explanation,
     bool? IsCorrect,
     int? BaseScore,
     int? SpeedBonus,

@@ -401,11 +401,34 @@ Host Console 不會自動猜測 Server Port。請以 Server Console 的 `Now lis
 
 ## 12. 正式題庫 CSV
 
-1. Host 完成活動連線後，找到「正式題庫（CSV 匯入）」區域。
+1. Host 完成活動連線後，從左側選擇 `Question Bank`。
 2. 第一次使用先按「匯出範本」，請用 Excel 或文字編輯器填寫，但儲存時必須選 UTF-8 CSV。
 3. 按「匯入 CSV」選檔，先檢查預覽中的題目與驗證訊息。
 4. 有錯誤時「確認匯入」會停用；修正 CSV 後重新選檔。
 5. 驗證通過後按「確認匯入」。匯入完成即可從題庫下拉選單選擇題目。
-6. 選題後按「開始題目」；每題必須依序完成「開始 → 關閉作答 → 公布答案」，才能切換下一題。
+
+CSV 欄位須包含 `Explanation` 與 `Mode`。`Explanation` 可以留白；`Mode` 必須填寫
+`Practice` 或 `Scored`。Practice 題會走完整作答與公布流程，但不會影響正式總分、答對數或排行榜。
+舊版 CSV 請先使用 Host 的「匯出範本」取得新版欄位後再匯入。
+6. 匯入後切換到 `Quiz Activity`；每題依序完成「開始 → 關閉作答 → 公布答案」。
+
+### 12.1 現場 Quiz 操作
+
+Host 的上方 Global Header、右側 Live Monitor／Display Override，以及下方主要操作列會永久顯示。正常流程不需要切換到其他頁面：
+
+```text
+Quiz Activity
+→ Practice 題：開始 → 關閉 → 公布 → 下一題
+→ 操作練習完成
+→ 開始正式比賽
+→ Scored 題：開始 → 關閉 → 公布 → 下一題
+→ 查看最終排行榜
+```
+
+- `Practice` 題會保存作答、統計與答案公布結果，但題目分數固定為 0，不影響正式累積分數、答對數與排行榜。
+- 最後一題 Practice 公布後，主按鈕會變成「開始正式比賽」。
+- 最後一題 Scored 公布後，主按鈕會變成「查看最終排行榜」。
+- 右側 `Waiting / Live / Result / Ranking` 是 Display 手動覆寫，只改變投影畫面，不會修改 Quiz 狀態。
+- 題目 Open 時會鎖定題目列表，必須先關閉並公布後才可切換。
 
 完整欄位與限制請參考 Repository 根目錄的 `README.md`，可直接測試 `samples/QuizQuestionBankSample.csv`。

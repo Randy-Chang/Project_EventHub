@@ -38,6 +38,7 @@ internal sealed record QuizStateView(
     QuizState State,
     Guid? SessionId,
     Guid? QuestionId,
+    QuizQuestionMode? Mode,
     string? QuestionText,
     IReadOnlyList<QuestionOptionView> Options,
     DateTimeOffset? StartedAtUtc,
@@ -45,7 +46,8 @@ internal sealed record QuizStateView(
     int AnsweredCount,
     int ParticipantCount,
     int OnlineCount,
-    Guid? CorrectOptionId);
+    Guid? CorrectOptionId,
+    string? Explanation);
 
 internal sealed record QuizStatisticsView(
     int ParticipantCount,

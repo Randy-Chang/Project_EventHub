@@ -28,8 +28,10 @@ internal sealed record QuestionBankRowView(
     string QuestionKey,
     string Category,
     QuestionBankDifficulty Difficulty,
+    QuizQuestionMode Mode,
     int Order,
     string Question,
+    string? Explanation,
     IReadOnlyList<string> Options,
     int CorrectOptionIndex,
     int DurationSeconds);
@@ -44,8 +46,10 @@ internal sealed record QuestionBankQuestionView(
     string QuestionKey,
     string? Category,
     QuestionBankDifficulty Difficulty,
+    QuizQuestionMode Mode,
     int Order,
     string Text,
+    string? Explanation,
     IReadOnlyList<QuestionOptionView> Options,
     int CorrectOptionIndex,
     int DurationSeconds,
@@ -60,6 +64,12 @@ internal enum QuestionBankDifficulty
     Easy,
     Medium,
     Hard
+}
+
+internal enum QuizQuestionMode
+{
+    Practice,
+    Scored
 }
 
 internal enum QuestionBankQuestionStatus

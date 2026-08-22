@@ -16,7 +16,7 @@ public sealed class QuizActionPresentationTests
     {
         var state = (QuizState)stateValue;
         var expectedAction = (QuizPrimaryAction)expectedActionValue;
-        var result = QuizActionPresentation.Resolve(state, true, true);
+        var result = QuizActionPresentation.Resolve(state, true, QuizQuestionMode.Scored, true, true);
 
         Assert.Equal(expectedAction, result.Action);
         Assert.Equal(expectedButtonText, result.ButtonText);
@@ -26,18 +26,38 @@ public sealed class QuizActionPresentationTests
     [Fact]
     public void Resolve_WaitingWithoutQuestion_DisablesStart()
     {
-        var result = QuizActionPresentation.Resolve(QuizState.Waiting, false, false);
+        var result = QuizActionPresentation.Resolve(QuizState.Waiting, false, null, false, true);
 
-        Assert.Equal(QuizPrimaryAction.Start, result.Action);
+        Assert.Equal(QuizPrimaryAction.None, result.Action);
+        Assert.Equal("請先選擇題庫", result.ButtonText);
         Assert.False(result.IsEnabled);
     }
 
     [Fact]
-    public void Resolve_RevealedWithoutNextQuestion_DisablesNext()
+    public void Resolve_LastScoredQuestion_OffersFinalLeaderboard()
     {
-        var result = QuizActionPresentation.Resolve(QuizState.Revealed, true, false);
+        var result = QuizActionPresentation.Resolve(
+            QuizState.Revealed,
+            true,
+            QuizQuestionMode.Scored,
+            false,
+            true);
 
-        Assert.Equal(QuizPrimaryAction.Next, result.Action);
-        Assert.False(result.IsEnabled);
+        Assert.Equal(QuizPrimaryAction.FinalLeaderboard, result.Action);
+        Assert.True(result.IsEnabled);
+    }
+
+    [Fact]
+    public void Resolve_LastPracticeQuestion_OffersStartOfficial()
+    {
+        var result = QuizActionPresentation.Resolve(
+            QuizState.Revealed,
+            true,
+            QuizQuestionMode.Practice,
+            false,
+            true);
+
+        Assert.Equal(QuizPrimaryAction.StartOfficial, result.Action);
+        Assert.True(result.IsEnabled);
     }
 }

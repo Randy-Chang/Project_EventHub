@@ -6,7 +6,7 @@ namespace EventHub.Infrastructure.Tests;
 public sealed class QuestionBankCsvParserTests
 {
     private const string Header =
-        "QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds\r\n";
+        "QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds,Explanation,Mode\r\n";
 
     [Fact]
     public async Task Parse_ValidCsv_ReturnsRow() =>
@@ -47,7 +47,7 @@ public sealed class QuestionBankCsvParserTests
     [Fact]
     public async Task Parse_ReorderedHeaders_AreAccepted()
     {
-        const string csv = "QuizTitle,QuestionKey,Difficulty,Category,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds\r\n尾牙,Q1,Easy,公司,1,題目,A,B,C,D,A,10\r\n";
+        const string csv = "QuizTitle,QuestionKey,Difficulty,Category,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds,Mode,Explanation\r\n尾牙,Q1,Easy,公司,1,題目,A,B,C,D,A,10,Scored,說明\r\n";
         Assert.Equal("Q1", (await ParseAsync(csv)).Rows.Single().QuestionKey);
     }
 
@@ -84,8 +84,22 @@ public sealed class QuestionBankCsvParserTests
         Assert.Contains(result.Issues, issue => issue.Field == "CSV");
     }
 
+    [Fact]
+    public async Task Parse_ExportTemplate_RoundTripsFiveValidRows()
+    {
+        var result = await ParseAsync(EventHub.Application.Quizzes.QuestionBankCsvTemplate.CreateUtf8BomBytes());
+        var (title, rows, issues) = new EventHub.Application.Quizzes.QuestionBankValidator().Validate(result);
+
+        Assert.Equal("2026尾牙知識王", title);
+        Assert.Equal(5, rows.Count);
+        Assert.Empty(issues);
+        Assert.Equal(2, rows.Count(row => row.Mode == EventHub.Domain.Quizzes.QuizQuestionMode.Practice));
+        Assert.Equal(3, rows.Count(row => row.Mode == EventHub.Domain.Quizzes.QuizQuestionMode.Scored));
+        Assert.Equal("A,選項", rows.Single(row => row.QuestionKey == "Q002").Options[0]);
+    }
+
     private static string Row(string question = "公司成立於哪一年？") =>
-        $"Q1,尾牙題庫,公司,Medium,1,{question},1998,2000,2004,2008,B,20\r\n";
+        $"Q1,尾牙題庫,公司,Medium,1,{question},1998,2000,2004,2008,B,20,答案說明,Scored\r\n";
 
     private static Task<EventHub.Application.Quizzes.QuestionBankParseResult> ParseAsync(string csv) =>
         ParseAsync(Encoding.UTF8.GetBytes(csv));

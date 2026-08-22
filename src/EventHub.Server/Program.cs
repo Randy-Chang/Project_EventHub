@@ -54,6 +54,7 @@ builder.Services.AddScoped<QuizScoringService>();
 builder.Services.AddScoped<QuizService>();
 builder.Services.AddScoped<QuestionBankService>();
 builder.Services.AddSingleton<QuestionBankValidator>();
+builder.Services.AddSingleton<DefaultPracticeQuestionProvider>();
 builder.Services.AddScoped<DisplayService>();
 
 var app = builder.Build();

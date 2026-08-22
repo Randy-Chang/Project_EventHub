@@ -61,6 +61,22 @@ public sealed class QuestionBankValidatorTests
     public void LowerCaseDifficulty_IsAccepted() =>
         Assert.Empty(Validate(Row() with { Difficulty = "hard" }).Issues);
 
+    [Theory]
+    [InlineData("Practice")]
+    [InlineData("scored")]
+    public void SupportedMode_IsAccepted(string value) =>
+        Assert.Empty(Validate(Row() with { Mode = value }).Issues);
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Warmup")]
+    public void InvalidMode_IsRejected(string value) =>
+        AssertIssue(Parse(Row() with { Mode = value }), "Mode");
+
+    [Fact]
+    public void EmptyExplanation_IsAccepted() =>
+        Assert.Empty(Validate(Row() with { Explanation = "" }).Issues);
+
     private (string? QuizTitle, IReadOnlyList<ValidatedQuestionBankRow> Rows, IReadOnlyList<QuestionBankIssue> Issues)
         Validate(QuestionBankRawRow row) => validator.Validate(Parse(row));
 
@@ -70,5 +86,5 @@ public sealed class QuestionBankValidatorTests
     private static QuestionBankParseResult Parse(params QuestionBankRawRow[] rows) => new(rows, []);
 
     private static QuestionBankRawRow Row() =>
-        new(2, "Q1", "尾牙題庫", "公司", "Medium", "1", "題目", "A", "B", "C", "D", "B", "20");
+        new(2, "Q1", "尾牙題庫", "公司", "Medium", "1", "題目", "A", "B", "C", "D", "B", "20", "說明", "Scored");
 }

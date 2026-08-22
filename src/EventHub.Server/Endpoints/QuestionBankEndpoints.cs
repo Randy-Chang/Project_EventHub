@@ -1,15 +1,12 @@
-using System.Text;
 using EventHub.Application.Quizzes;
 
 namespace EventHub.Server.Endpoints;
 
 public static class QuestionBankEndpoints
 {
-    private const string TemplateHeader =
-        "QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds\r\n";
-
     public static IEndpointRouteBuilder MapQuestionBankEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/quiz-import/template", CreateTemplateResult);
         var group = endpoints.MapGroup("/api/v1/events/{eventId:guid}");
 
         group.MapPost("/quiz-import/preview", async (
@@ -92,12 +89,7 @@ public static class QuestionBankEndpoints
             CancellationToken cancellationToken) =>
         {
             await service.AuthorizeAsync(eventId, ReadHostToken(request), cancellationToken);
-            var preamble = Encoding.UTF8.GetPreamble();
-            var content = Encoding.UTF8.GetBytes(TemplateHeader);
-            var bytes = new byte[preamble.Length + content.Length];
-            preamble.CopyTo(bytes, 0);
-            content.CopyTo(bytes, preamble.Length);
-            return Results.File(bytes, "text/csv; charset=utf-8", "EventHub_QuizTemplate.csv");
+            return CreateTemplateResult();
         });
 
         group.MapGet("/quiz/question-banks", async (
@@ -106,6 +98,19 @@ public static class QuestionBankEndpoints
             QuestionBankService service,
             CancellationToken cancellationToken) =>
             Results.Ok(await service.ListAsync(eventId, ReadHostToken(request), cancellationToken)));
+
+        group.MapPost("/quiz/default-practice", async (
+            Guid eventId,
+            HttpRequest request,
+            QuestionBankService service,
+            CancellationToken cancellationToken) =>
+        {
+            var result = await service.EnsureDefaultPracticeAsync(
+                eventId,
+                ReadHostToken(request),
+                cancellationToken);
+            return Results.Ok(result);
+        });
 
         group.MapGet("/quiz/question-banks/{quizId:guid}/questions", async (
             Guid eventId,
@@ -120,6 +125,14 @@ public static class QuestionBankEndpoints
                 cancellationToken)));
 
         return endpoints;
+    }
+
+    private static IResult CreateTemplateResult()
+    {
+        return Results.File(
+            QuestionBankCsvTemplate.CreateUtf8BomBytes(),
+            "text/csv; charset=utf-8",
+            "EventHub_QuizTemplate.csv");
     }
 
     private static async Task<IFormFile> ReadFileAsync(HttpRequest request, CancellationToken cancellationToken)

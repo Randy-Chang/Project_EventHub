@@ -207,7 +207,8 @@
       return;
     }
 
-    quizQuestion.textContent = state.questionText;
+    const isPractice = state.mode === "Practice";
+    quizQuestion.textContent = isPractice ? `操作練習｜${state.questionText}` : state.questionText;
     const optionById = new Map(state.options.map((option) => [option.id, option]));
     state.options.forEach((option, index) => {
       const button = document.createElement("button");
@@ -250,7 +251,10 @@
     const questionScore = state.questionScore ?? 0;
     const baseScore = state.baseScore ?? 0;
     const speedBonus = state.speedBonus ?? 0;
-    quizScore.textContent = `本題 ${questionScore} 分（答對 ${baseScore} + 速度 ${speedBonus}）　累積 ${state.totalScore ?? 0} 分　第 ${state.rank ?? "-"} 名`;
+    const explanation = state.explanation ? `　說明：${state.explanation}` : "";
+    quizScore.textContent = isPractice
+      ? `本題不計分　正式累積 ${state.totalScore ?? 0} 分${explanation}`
+      : `本題 ${questionScore} 分（答對 ${baseScore} + 速度 ${speedBonus}）　累積 ${state.totalScore ?? 0} 分　第 ${state.rank ?? "-"} 名${explanation}`;
     quizScore.hidden = false;
     if (activeEventId && activeSession) {
       loadLeaderboard(activeEventId, activeSession);

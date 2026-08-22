@@ -53,6 +53,7 @@ internal partial class QuestionBankView : UserControl
                 question.QuestionKey,
                 question.Category,
                 question.Difficulty,
+                question.Mode,
                 question.Text,
                 question.DurationSeconds,
                 question.Status);
@@ -139,7 +140,8 @@ internal partial class QuestionBankView : UserControl
             .Select(option => $"{(char)('A' + option.Order)}. {option.Text}");
         questionDetailTextBox.Text =
             $"{question.Text}{Environment.NewLine}{string.Join("　", options)}{Environment.NewLine}" +
-            $"正確答案：{(char)('A' + question.CorrectOptionIndex)}　秒數：{question.DurationSeconds}　狀態：{question.Status}";
+            $"模式：{question.Mode}　正確答案：{(char)('A' + question.CorrectOptionIndex)}　秒數：{question.DurationSeconds}　狀態：{question.Status}" +
+            $"{Environment.NewLine}答案說明：{question.Explanation ?? "（無）"}";
         SelectedQuestionChanged?.Invoke(this, EventArgs.Empty);
     }
 

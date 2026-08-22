@@ -14,6 +14,12 @@ public interface IQuizRepository
 
     Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken);
 
+    Task<QuizQuestionPosition> GetQuestionPositionAsync(
+        Guid quizId,
+        Guid questionId,
+        QuizQuestionMode mode,
+        CancellationToken cancellationToken);
+
     Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken);
 
     Task<QuizQuestion?> GetQuestionAsync(Guid questionId, CancellationToken cancellationToken);
@@ -75,6 +81,8 @@ public sealed record QuizLeaderboardRow(
     int AnsweredCount);
 
 public sealed record QuizOptionAnswerCount(Guid OptionId, int AnswerCount);
+
+public sealed record QuizQuestionPosition(int Number, int Total);
 
 public sealed record QuizSessionStatisticsData(
     Guid QuizId,

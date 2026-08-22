@@ -122,11 +122,14 @@ Host 連線到活動後，可在「正式題庫（CSV 匯入）」區使用「�
 正式欄位為：
 
 ```text
-QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds
+QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds,Explanation,Mode
 ```
 
 - 一個 CSV 只能有一個 `QuizTitle`，同活動不可匯入同名題庫。
 - `QuestionKey` 與 `Order` 在同一題庫內不可重複。
+- `Mode` 為必要欄位，只接受 `Practice` 或 `Scored`（不分大小寫）。
+- `Explanation` 可留白，且只會在公布答案後提供給 Guest 與 Display。
+- 舊版 CSV 必須補上 `Explanation` 與 `Mode` 欄位後才能匯入。
 - `Difficulty` 僅接受 `Easy`、`Medium`、`Hard`，目前不影響計分。
 - `CorrectOption` 僅接受 `A`～`D`，作答秒數須為 5～120。
 - 檔案必須是 UTF-8、最大 5 MB、最多 500 題。

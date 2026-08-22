@@ -75,7 +75,11 @@ public sealed class DisplayService(
 
         var question = await quizRepository.GetQuestionAsync(session.QuestionId, cancellationToken)
             ?? throw new KeyNotFoundException("找不到目前展示的題目。");
-        var totalQuestionCount = await quizRepository.CountQuestionsAsync(session.QuizId, cancellationToken);
+        var questionPosition = await quizRepository.GetQuestionPositionAsync(
+            session.QuizId,
+            question.Id,
+            question.Mode,
+            cancellationToken);
         var answeredCount = await quizRepository.CountAnswersAsync(session.Id, cancellationToken);
         var effectiveMode = eventItem.DisplayMode;
         if (effectiveMode == DisplayMode.Result && session.State != QuizQuestionState.Revealed)
@@ -86,8 +90,9 @@ public sealed class DisplayService(
         var questionState = new DisplayQuestionState(
             session.Id,
             session.State,
-            question.Order,
-            totalQuestionCount,
+            question.Mode,
+            questionPosition.Number,
+            questionPosition.Total,
             question.Text,
             question.Options
                 .OrderBy(option => option.Order)
@@ -99,6 +104,9 @@ public sealed class DisplayService(
             participantCount,
             effectiveMode == DisplayMode.Result && session.State == QuizQuestionState.Revealed
                 ? question.CorrectOptionId
+                : null,
+            effectiveMode == DisplayMode.Result && session.State == QuizQuestionState.Revealed
+                ? question.Explanation
                 : null);
 
         if (effectiveMode == DisplayMode.Result)

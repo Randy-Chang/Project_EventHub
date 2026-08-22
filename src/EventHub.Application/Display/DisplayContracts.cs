@@ -14,6 +14,7 @@ public sealed record SetDisplayModeCommand(
 public sealed record DisplayQuestionState(
     Guid SessionId,
     QuizQuestionState State,
+    QuizQuestionMode Mode,
     int QuestionNumber,
     int TotalQuestionCount,
     string Text,
@@ -23,7 +24,9 @@ public sealed record DisplayQuestionState(
     int AnsweredCount,
     int ParticipantCount,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    Guid? CorrectOptionId);
+    Guid? CorrectOptionId,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    string? Explanation);
 
 public sealed record DisplayLeaderboardEntry(
     int Rank,

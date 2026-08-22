@@ -15,9 +15,11 @@ internal partial class QuestionBankImportPreviewForm : Form
                 row.QuestionKey,
                 row.Category,
                 row.Difficulty,
+                row.Mode,
                 row.Question,
                 ((char)('A' + row.CorrectOptionIndex)).ToString(),
-                row.DurationSeconds);
+                row.DurationSeconds,
+                row.Explanation);
         }
 
         foreach (var issue in preview.Issues)

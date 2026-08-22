@@ -95,7 +95,9 @@ public sealed class CsvHelperQuestionBankParser : IQuestionBankCsvParser
                     values["OptionC"],
                     values["OptionD"],
                     values["CorrectOption"],
-                    values["DurationSeconds"]));
+                    values["DurationSeconds"],
+                    values["Explanation"],
+                    values["Mode"]));
             }
         }
         catch (DecoderFallbackException)

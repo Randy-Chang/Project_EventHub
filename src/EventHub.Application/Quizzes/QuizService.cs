@@ -221,6 +221,7 @@ public sealed class QuizService(
             session.State,
             session.Id,
             question.Id,
+            question.Mode,
             question.Text,
             question.Options.OrderBy(option => option.Order).Select(ToOptionSummary).ToArray(),
             session.StartedAtUtc,
@@ -231,6 +232,7 @@ public sealed class QuizService(
             answer?.SelectedOptionId,
             answer is not null,
             isRevealed ? question.CorrectOptionId : null,
+            isRevealed ? question.Explanation : null,
             isRevealed && answer is not null ? answer.SelectedOptionId == question.CorrectOptionId : null,
             questionResult?.BaseScore,
             questionResult?.SpeedBonus,
@@ -247,6 +249,7 @@ public sealed class QuizService(
             null,
             null,
             null,
+            null,
             [],
             null,
             null,
@@ -255,6 +258,7 @@ public sealed class QuizService(
             progress.OnlineCount,
             null,
             false,
+            null,
             null,
             null,
             null,
@@ -312,7 +316,8 @@ public sealed class QuizService(
             question.Text,
             question.Options.OrderBy(option => option.Order).Select(ToOptionSummary).ToArray(),
             (int)question.AnswerDuration.TotalSeconds,
-            question.Order);
+            question.Order,
+            question.Mode);
 
     private static QuizOptionSummary ToOptionSummary(QuizOption option) => new(option.Id, option.Text, option.Order);
 }

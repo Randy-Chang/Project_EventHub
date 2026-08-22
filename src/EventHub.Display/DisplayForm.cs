@@ -153,7 +153,13 @@ public partial class DisplayForm : Form
         }
 
         ShowPanel(questionPanel);
-        questionNumberLabel.Text = $"第 {question.QuestionNumber} / {question.TotalQuestionCount} 題";
+        var isPractice = question.Mode == QuizQuestionMode.Practice;
+        questionEventLabel.Text = isPractice
+            ? $"{questionEventLabel.Text.Split('｜')[0].Trim()}　｜　操作練習・本題不計分"
+            : questionEventLabel.Text.Split('｜')[0].Trim();
+        questionNumberLabel.Text = isPractice
+            ? $"熱身 {question.QuestionNumber} / {question.TotalQuestionCount}"
+            : $"第 {question.QuestionNumber} / {question.TotalQuestionCount} 題";
         questionTextLabel.Text = question.Text;
         questionTextLabel.Font = new Font(
             "Microsoft JhengHei UI",
@@ -208,7 +214,17 @@ public partial class DisplayForm : Form
             .FindIndex(option => option.Id == question.CorrectOptionId.Value);
         var correctOption = question.Options.First(option => option.Id == question.CorrectOptionId.Value);
         correctAnswerLabel.Text = $"✓ 正確答案　{(char)('A' + correctIndex)}. {correctOption.Text}";
-        correctRateLabel.Text = $"答對率 {statistics.CorrectRate:P1}";
+        var practiceMessage = question.Mode == QuizQuestionMode.Practice
+            ? "操作練習・本題不計分　｜　"
+            : string.Empty;
+        var explanation = string.IsNullOrWhiteSpace(question.Explanation)
+            ? string.Empty
+            : $"{Environment.NewLine}說明：{question.Explanation}";
+        correctRateLabel.Text = $"{practiceMessage}答對率 {statistics.CorrectRate:P1}{explanation}";
+        correctRateLabel.Font = new Font(
+            "Microsoft JhengHei UI",
+            string.IsNullOrWhiteSpace(question.Explanation) ? 30F : 20F,
+            FontStyle.Bold);
         var textLabels = new[] { resultOptionALabel, resultOptionBLabel, resultOptionCLabel, resultOptionDLabel };
         var bars = new[] { resultOptionABar, resultOptionBBar, resultOptionCBar, resultOptionDBar };
         var countLabels = new[] { resultOptionACountLabel, resultOptionBCountLabel, resultOptionCCountLabel, resultOptionDCountLabel };

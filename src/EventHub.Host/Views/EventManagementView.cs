@@ -2,6 +2,14 @@ using System.Runtime.InteropServices;
 
 namespace EventHub.Host.Views;
 
+internal enum OperationMessageKind
+{
+    Information,
+    Success,
+    Warning,
+    Error
+}
+
 internal partial class EventManagementView : UserControl
 {
     public EventManagementView()
@@ -49,6 +57,18 @@ internal partial class EventManagementView : UserControl
         }
     }
 
+    public void ResetCurrentContext()
+    {
+        eventInfoValueLabel.Text = "尚未建立或連線";
+        joinUrlTextBox.Clear();
+        joinUrlWarningLabel.Text = "建立活動後顯示 QR Code。";
+        joinUrlWarningLabel.ForeColor = SystemColors.ControlText;
+        var previous = joinQrCodePictureBox.Image;
+        joinQrCodePictureBox.Image = null;
+        previous?.Dispose();
+        participantGrid.Rows.Clear();
+    }
+
     public void UpsertParticipant(ParticipantView participant)
     {
         var row = participantGrid.Rows.Cast<DataGridViewRow>()
@@ -66,8 +86,26 @@ internal partial class EventManagementView : UserControl
 
     public void SetStatus(string message, bool isError = false)
     {
+        SetStatus(message, isError ? OperationMessageKind.Error : OperationMessageKind.Success);
+    }
+
+    public void SetStatus(string message, OperationMessageKind kind)
+    {
         statusLabel.Text = message;
-        statusLabel.ForeColor = isError ? Color.Firebrick : Color.DarkGreen;
+        statusLabel.ForeColor = kind switch
+        {
+            OperationMessageKind.Error => Color.Firebrick,
+            OperationMessageKind.Warning => Color.DarkOrange,
+            OperationMessageKind.Success => Color.DarkGreen,
+            _ => Color.FromArgb(35, 67, 92)
+        };
+        operationMessagePanel.BackColor = kind switch
+        {
+            OperationMessageKind.Error => Color.FromArgb(255, 241, 241),
+            OperationMessageKind.Warning => Color.FromArgb(255, 248, 230),
+            OperationMessageKind.Success => Color.FromArgb(241, 248, 245),
+            _ => Color.FromArgb(240, 246, 252)
+        };
     }
 
     public void SetBusy(bool isBusy)

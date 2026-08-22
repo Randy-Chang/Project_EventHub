@@ -45,8 +45,13 @@ public sealed class DisplayServiceTests
         Assert.Equal(DisplayMode.Question, state.Mode);
         Assert.Equal(quizState, state.Question?.State);
         Assert.Null(state.Question?.CorrectOptionId);
+        Assert.Null(state.Question?.Explanation);
         Assert.DoesNotContain(
             "CorrectOptionId",
+            JsonSerializer.Serialize(state),
+            StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(
+            "Explanation",
             JsonSerializer.Serialize(state),
             StringComparison.OrdinalIgnoreCase);
     }
@@ -63,6 +68,7 @@ public sealed class DisplayServiceTests
 
         Assert.Equal(DisplayMode.Result, state.Mode);
         Assert.Equal(fixture.Question.CorrectOptionId, state.Question?.CorrectOptionId);
+        Assert.Equal("2000 是正確年份。", state.Question?.Explanation);
         Assert.Equal(2, state.Statistics?.CorrectCount);
         Assert.Equal(0.6667m, state.Statistics?.CorrectRate);
     }
@@ -127,6 +133,22 @@ public sealed class DisplayServiceTests
         Assert.Equal(DisplayMode.Leaderboard, recovered.Mode);
     }
 
+    [Fact]
+    public async Task QuestionNumber_UsesModeSpecificPosition()
+    {
+        var fixture = CreateFixture(QuizQuestionState.Open);
+        fixture.Repository.Position = new QuizQuestionPosition(2, 30);
+        await fixture.Service.SetModeAsync(
+            new SetDisplayModeCommand(fixture.EventId, DisplayMode.Question, "host-token"),
+            10,
+            CancellationToken.None);
+
+        var state = await fixture.Service.GetCurrentStateAsync(fixture.EventId, 10, CancellationToken.None);
+
+        Assert.Equal(2, state.Question?.QuestionNumber);
+        Assert.Equal(30, state.Question?.TotalQuestionCount);
+    }
+
     private static Fixture CreateFixture(QuizQuestionState sessionState)
     {
         var credentials = new FakeCredentialService();
@@ -143,7 +165,12 @@ public sealed class DisplayServiceTests
         var quiz = Quiz.Create(eventItem.Id, "Quiz", Now);
         var question = QuizQuestion.Create(
             quiz.Id,
+            "Q1",
+            "公司",
+            QuizQuestionDifficulty.Medium,
+            QuizQuestionMode.Scored,
             "公司成立於哪一年？",
+            "2000 是正確年份。",
             ["1998", "2000", "2004", "2008"],
             1,
             TimeSpan.FromSeconds(20),
@@ -197,10 +224,14 @@ public sealed class DisplayServiceTests
             eventService,
             scoringService,
             new FixedTimeProvider(Now));
-        return new Fixture(eventItem.Id, question, service);
+        return new Fixture(eventItem.Id, question, service, quizRepository);
     }
 
-    private sealed record Fixture(Guid EventId, QuizQuestion Question, DisplayService Service);
+    private sealed record Fixture(
+        Guid EventId,
+        QuizQuestion Question,
+        DisplayService Service,
+        FakeQuizRepository Repository);
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
     {
@@ -265,6 +296,7 @@ public sealed class DisplayServiceTests
         public QuizQuestion? Question { get; set; }
         public QuizQuestionSession? Session { get; set; }
         public List<QuizLeaderboardRow> LeaderboardRows { get; } = [];
+        public QuizQuestionPosition Position { get; set; } = new(1, 1);
 
         public Task<Quiz?> GetByEventAsync(Guid eventId, CancellationToken cancellationToken) => Task.FromResult(Quiz);
         public Task<Quiz?> GetQuizAsync(Guid quizId, CancellationToken cancellationToken) =>
@@ -272,6 +304,11 @@ public sealed class DisplayServiceTests
         public Task AddQuizAsync(Quiz quiz, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<int> GetNextQuestionOrderAsync(Guid quizId, CancellationToken cancellationToken) => Task.FromResult(2);
         public Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken) => Task.FromResult(1);
+        public Task<QuizQuestionPosition> GetQuestionPositionAsync(
+            Guid quizId,
+            Guid questionId,
+            QuizQuestionMode mode,
+            CancellationToken cancellationToken) => Task.FromResult(Position);
         public Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<QuizQuestion?> GetQuestionAsync(Guid questionId, CancellationToken cancellationToken) => Task.FromResult(Question);
         public Task<QuizQuestionSession?> GetCurrentSessionAsync(Guid eventId, CancellationToken cancellationToken) => Task.FromResult(Session);

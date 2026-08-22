@@ -16,6 +16,12 @@ public enum QuizQuestionState
     Revealed
 }
 
+public enum QuizQuestionMode
+{
+    Practice,
+    Scored
+}
+
 public enum DisplayPresentationState
 {
     WaitingForEvent,
@@ -40,6 +46,7 @@ public sealed record QuizOptionDto(Guid Id, string Text, int Order);
 public sealed record DisplayQuestionDto(
     Guid SessionId,
     QuizQuestionState State,
+    QuizQuestionMode Mode,
     int QuestionNumber,
     int TotalQuestionCount,
     string Text,
@@ -48,7 +55,8 @@ public sealed record DisplayQuestionDto(
     DateTimeOffset? AnswerDeadlineUtc,
     int AnsweredCount,
     int ParticipantCount,
-    Guid? CorrectOptionId);
+    Guid? CorrectOptionId,
+    string? Explanation);
 
 public sealed record QuizOptionStatisticsDto(Guid OptionId, string Text, int AnswerCount);
 

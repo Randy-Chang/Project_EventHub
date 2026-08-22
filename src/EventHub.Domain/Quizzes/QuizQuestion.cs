@@ -16,7 +16,9 @@ public sealed class QuizQuestion
         string questionKey,
         string? category,
         QuizQuestionDifficulty difficulty,
+        QuizQuestionMode mode,
         string text,
+        string? explanation,
         TimeSpan answerDuration,
         int order)
     {
@@ -25,7 +27,9 @@ public sealed class QuizQuestion
         QuestionKey = questionKey;
         Category = category;
         Difficulty = difficulty;
+        Mode = mode;
         Text = text;
+        Explanation = explanation;
         AnswerDuration = answerDuration;
         Order = order;
     }
@@ -40,7 +44,11 @@ public sealed class QuizQuestion
 
     public QuizQuestionDifficulty Difficulty { get; private set; }
 
+    public QuizQuestionMode Mode { get; private set; }
+
     public string Text { get; private set; } = string.Empty;
+
+    public string? Explanation { get; private set; }
 
     public TimeSpan AnswerDuration { get; private set; }
 
@@ -63,7 +71,9 @@ public sealed class QuizQuestion
             $"MANUAL-{Guid.NewGuid():N}",
             null,
             QuizQuestionDifficulty.Medium,
+            QuizQuestionMode.Scored,
             text,
+            null,
             optionTexts,
             correctOptionIndex,
             answerDuration,
@@ -76,6 +86,31 @@ public sealed class QuizQuestion
         string? category,
         QuizQuestionDifficulty difficulty,
         string text,
+        IReadOnlyCollection<string> optionTexts,
+        int correctOptionIndex,
+        TimeSpan answerDuration,
+        int order) =>
+        Create(
+            quizId,
+            questionKey,
+            category,
+            difficulty,
+            QuizQuestionMode.Scored,
+            text,
+            null,
+            optionTexts,
+            correctOptionIndex,
+            answerDuration,
+            order);
+
+    public static QuizQuestion Create(
+        Guid quizId,
+        string questionKey,
+        string? category,
+        QuizQuestionDifficulty difficulty,
+        QuizQuestionMode mode,
+        string text,
+        string? explanation,
         IReadOnlyCollection<string> optionTexts,
         int correctOptionIndex,
         TimeSpan answerDuration,
@@ -104,6 +139,12 @@ public sealed class QuizQuestion
             throw new DomainValidationException("題目須為 1 至 500 個字元。");
         }
 
+        var normalizedExplanation = string.IsNullOrWhiteSpace(explanation) ? null : explanation.Trim();
+        if (normalizedExplanation?.Length > 1000)
+        {
+            throw new DomainValidationException("答案說明不可超過 1000 個字元。");
+        }
+
         if (optionTexts.Count is < 2 or > 4)
         {
             throw new DomainValidationException("單選題須有 2 至 4 個選項。");
@@ -130,7 +171,9 @@ public sealed class QuizQuestion
             normalizedQuestionKey,
             normalizedCategory,
             difficulty,
+            mode,
             normalizedText,
+            normalizedExplanation,
             answerDuration,
             order);
         var normalizedOptions = optionTexts.Select(value => value.Trim()).ToArray();

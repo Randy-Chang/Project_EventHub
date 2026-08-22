@@ -40,6 +40,26 @@ public sealed class QuizRepository(EventHubDbContext dbContext) : IQuizRepositor
             cancellationToken);
     }
 
+    public async Task<QuizQuestionPosition> GetQuestionPositionAsync(
+        Guid quizId,
+        Guid questionId,
+        QuizQuestionMode mode,
+        CancellationToken cancellationToken)
+    {
+        var order = await dbContext.QuizQuestions
+            .Where(question => question.QuizId == quizId && question.Id == questionId && question.Mode == mode)
+            .Select(question => (int?)question.Order)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("找不到指定模式的題目。");
+        var number = await dbContext.QuizQuestions.CountAsync(
+            question => question.QuizId == quizId && question.Mode == mode && question.Order <= order,
+            cancellationToken);
+        var total = await dbContext.QuizQuestions.CountAsync(
+            question => question.QuizId == quizId && question.Mode == mode,
+            cancellationToken);
+        return new QuizQuestionPosition(number, total);
+    }
+
     public async Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken)
     {
         dbContext.QuizQuestions.Add(question);
