@@ -16,6 +16,8 @@ public interface IEventClient
     Task QuestionClosed(QuestionClosedNotification notification);
 
     Task AnswerRevealed(AnswerRevealedNotification notification);
+
+    Task LeaderboardUpdated(LeaderboardUpdatedNotification notification);
 }
 
 public sealed record QuestionStartedNotification(
@@ -35,3 +37,5 @@ public sealed record QuestionProgressNotification(
 public sealed record QuestionClosedNotification(Guid SessionId);
 
 public sealed record AnswerRevealedNotification(Guid SessionId, Guid CorrectOptionId);
+
+public sealed record LeaderboardUpdatedNotification(Guid SessionId);

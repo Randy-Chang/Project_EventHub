@@ -62,9 +62,18 @@ partial class HostDashboardForm
         startQuestionButton = new Button();
         closeQuestionButton = new Button();
         revealAnswerButton = new Button();
+        quizResultLabel = new Label();
+        quizLeaderboardLabel = new Label();
+        quizLeaderboardGrid = new DataGridView();
+        rankColumn = new DataGridViewTextBoxColumn();
+        leaderboardNameColumn = new DataGridViewTextBoxColumn();
+        totalScoreColumn = new DataGridViewTextBoxColumn();
+        correctCountColumn = new DataGridViewTextBoxColumn();
+        answeredCountColumn = new DataGridViewTextBoxColumn();
         ((System.ComponentModel.ISupportInitialize)participantGrid).BeginInit();
         quizGroupBox.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)quizLeaderboardGrid).BeginInit();
         SuspendLayout();
         //
         // serverUrlLabel
@@ -253,9 +262,12 @@ partial class HostDashboardForm
         quizGroupBox.Controls.Add(startQuestionButton);
         quizGroupBox.Controls.Add(closeQuestionButton);
         quizGroupBox.Controls.Add(revealAnswerButton);
+        quizGroupBox.Controls.Add(quizResultLabel);
+        quizGroupBox.Controls.Add(quizLeaderboardLabel);
+        quizGroupBox.Controls.Add(quizLeaderboardGrid);
         quizGroupBox.Location = new Point(20, 430);
         quizGroupBox.Name = "quizGroupBox";
-        quizGroupBox.Size = new Size(825, 285);
+        quizGroupBox.Size = new Size(825, 475);
         quizGroupBox.TabIndex = 15;
         quizGroupBox.TabStop = false;
         quizGroupBox.Text = "Quiz 快問快答";
@@ -344,32 +356,66 @@ partial class HostDashboardForm
         quizProgressLabel.Name = "quizProgressLabel";
         quizProgressLabel.Text = "已作答 0 / 0　在線 0";
         startQuestionButton.Enabled = false;
-        startQuestionButton.Location = new Point(430, 220);
+        quizResultLabel.AutoSize = true;
+        quizResultLabel.Location = new Point(15, 210);
+        quizResultLabel.Name = "quizResultLabel";
+        quizResultLabel.Text = "結果：等待公布答案";
+        startQuestionButton.Location = new Point(430, 230);
         startQuestionButton.Name = "startQuestionButton";
         startQuestionButton.Size = new Size(110, 35);
         startQuestionButton.Text = "開始題目";
         startQuestionButton.UseVisualStyleBackColor = true;
         startQuestionButton.Click += startQuestionButton_Click;
         closeQuestionButton.Enabled = false;
-        closeQuestionButton.Location = new Point(550, 220);
+        closeQuestionButton.Location = new Point(550, 230);
         closeQuestionButton.Name = "closeQuestionButton";
         closeQuestionButton.Size = new Size(110, 35);
         closeQuestionButton.Text = "關閉作答";
         closeQuestionButton.UseVisualStyleBackColor = true;
         closeQuestionButton.Click += closeQuestionButton_Click;
         revealAnswerButton.Enabled = false;
-        revealAnswerButton.Location = new Point(670, 220);
+        revealAnswerButton.Location = new Point(670, 230);
         revealAnswerButton.Name = "revealAnswerButton";
         revealAnswerButton.Size = new Size(130, 35);
         revealAnswerButton.Text = "公布正確答案";
         revealAnswerButton.UseVisualStyleBackColor = true;
         revealAnswerButton.Click += revealAnswerButton_Click;
+        quizLeaderboardLabel.AutoSize = true;
+        quizLeaderboardLabel.Location = new Point(15, 285);
+        quizLeaderboardLabel.Name = "quizLeaderboardLabel";
+        quizLeaderboardLabel.Text = "排行榜 Top 10";
+        quizLeaderboardGrid.AllowUserToAddRows = false;
+        quizLeaderboardGrid.AllowUserToDeleteRows = false;
+        quizLeaderboardGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        quizLeaderboardGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        quizLeaderboardGrid.Columns.AddRange(new DataGridViewColumn[] { rankColumn, leaderboardNameColumn, totalScoreColumn, correctCountColumn, answeredCountColumn });
+        quizLeaderboardGrid.Location = new Point(15, 310);
+        quizLeaderboardGrid.Name = "quizLeaderboardGrid";
+        quizLeaderboardGrid.ReadOnly = true;
+        quizLeaderboardGrid.RowHeadersVisible = false;
+        quizLeaderboardGrid.Size = new Size(785, 145);
+        quizLeaderboardGrid.TabIndex = 21;
+        rankColumn.HeaderText = "名次";
+        rankColumn.Name = "rankColumn";
+        rankColumn.ReadOnly = true;
+        leaderboardNameColumn.HeaderText = "顯示名稱";
+        leaderboardNameColumn.Name = "leaderboardNameColumn";
+        leaderboardNameColumn.ReadOnly = true;
+        totalScoreColumn.HeaderText = "總分";
+        totalScoreColumn.Name = "totalScoreColumn";
+        totalScoreColumn.ReadOnly = true;
+        correctCountColumn.HeaderText = "答對";
+        correctCountColumn.Name = "correctCountColumn";
+        correctCountColumn.ReadOnly = true;
+        answeredCountColumn.HeaderText = "作答";
+        answeredCountColumn.Name = "answeredCountColumn";
+        answeredCountColumn.ReadOnly = true;
         //
         // HostDashboardForm
         //
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(865, 735);
+        ClientSize = new Size(865, 925);
         Controls.Add(quizGroupBox);
         Controls.Add(participantGrid);
         Controls.Add(onlineCountLabel);
@@ -386,7 +432,7 @@ partial class HostDashboardForm
         Controls.Add(eventNameLabel);
         Controls.Add(serverUrlTextBox);
         Controls.Add(serverUrlLabel);
-        MinimumSize = new Size(760, 700);
+        MinimumSize = new Size(760, 890);
         Name = "HostDashboardForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "EventHub Host Console";
@@ -395,6 +441,7 @@ partial class HostDashboardForm
         quizGroupBox.ResumeLayout(false);
         quizGroupBox.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).EndInit();
+        ((System.ComponentModel.ISupportInitialize)quizLeaderboardGrid).EndInit();
         ResumeLayout(false);
         PerformLayout();
     }
@@ -444,4 +491,12 @@ partial class HostDashboardForm
     private Button startQuestionButton;
     private Button closeQuestionButton;
     private Button revealAnswerButton;
+    private Label quizResultLabel;
+    private Label quizLeaderboardLabel;
+    private DataGridView quizLeaderboardGrid;
+    private DataGridViewTextBoxColumn rankColumn;
+    private DataGridViewTextBoxColumn leaderboardNameColumn;
+    private DataGridViewTextBoxColumn totalScoreColumn;
+    private DataGridViewTextBoxColumn correctCountColumn;
+    private DataGridViewTextBoxColumn answeredCountColumn;
 }

@@ -66,6 +66,7 @@ public partial class HostDashboardForm : Form
         hubConnection.On<QuestionProgressNotification>("QuestionProgressUpdated", UpdateQuizProgressThreadSafe);
         hubConnection.On<QuestionClosedNotification>("QuestionClosed", _ => RefreshQuizStateThreadSafe(eventId));
         hubConnection.On<AnswerRevealedNotification>("AnswerRevealed", _ => RefreshQuizStateThreadSafe(eventId));
+        hubConnection.On<LeaderboardUpdatedNotification>("LeaderboardUpdated", _ => RefreshQuizResultsThreadSafe(eventId));
         hubConnection.Reconnecting += _ => UpdateStatusAsync("SignalR 重新連線中…");
         hubConnection.Reconnected += _ =>
         {
@@ -151,7 +152,22 @@ public partial class HostDashboardForm : Form
 
     private async void revealAnswerButton_Click(object? sender, EventArgs e)
     {
-        await ExecuteSessionCommandAsync("reveal");
+        await RunUiOperationAsync(async () =>
+        {
+            if (!currentSessionId.HasValue)
+            {
+                throw new InvalidOperationException("目前沒有題目場次。");
+            }
+
+            var eventId = GetEventId();
+            using var request = CreateHostRequest(
+                HttpMethod.Post,
+                $"api/v1/events/{eventId:D}/quiz/sessions/{currentSessionId.Value:D}/reveal");
+            request.Content = JsonContent.Create(new { });
+            using var response = await httpClient.SendAsync(request);
+            await EnsureSuccessAsync(response);
+            await LoadQuizStateAsync(eventId);
+        });
     }
 
     private async Task ExecuteSessionCommandAsync(string command)
@@ -186,6 +202,10 @@ public partial class HostDashboardForm : Form
         var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
             ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
         ApplyQuizState(state);
+        if (state.State == QuizState.Revealed && state.SessionId.HasValue)
+        {
+            await LoadQuizResultsAsync(eventId, state.SessionId.Value);
+        }
     }
 
     private void RefreshQuizStateThreadSafe(Guid eventId)
@@ -223,6 +243,59 @@ public partial class HostDashboardForm : Form
         }
     }
 
+    private void RefreshQuizResultsThreadSafe(Guid eventId)
+    {
+        if (IsDisposed || !currentSessionId.HasValue)
+        {
+            return;
+        }
+
+        var sessionId = currentSessionId.Value;
+        BeginInvoke(async () =>
+        {
+            try
+            {
+                await LoadQuizResultsAsync(eventId, sessionId);
+            }
+            catch (Exception exception)
+            {
+                statusLabel.Text = $"Quiz 結果同步失敗：{exception.Message}";
+            }
+        });
+    }
+
+    private async Task LoadQuizResultsAsync(Guid eventId, Guid sessionId)
+    {
+        using var statisticsRequest = CreateHostRequest(
+            HttpMethod.Get,
+            $"api/v1/events/{eventId:D}/quiz/sessions/{sessionId:D}/stats");
+        using var statisticsResponse = await httpClient.SendAsync(statisticsRequest);
+        await EnsureSuccessAsync(statisticsResponse);
+        var statistics = await statisticsResponse.Content.ReadFromJsonAsync<QuizStatisticsView>()
+            ?? throw new InvalidOperationException("Server 未回傳 Quiz 統計。");
+
+        using var leaderboardRequest = CreateHostRequest(
+            HttpMethod.Get,
+            $"api/v1/events/{eventId:D}/quiz/leaderboard?top=10");
+        using var leaderboardResponse = await httpClient.SendAsync(leaderboardRequest);
+        await EnsureSuccessAsync(leaderboardResponse);
+        var leaderboard = await leaderboardResponse.Content.ReadFromJsonAsync<QuizLeaderboardView>()
+            ?? throw new InvalidOperationException("Server 未回傳排行榜。");
+
+        quizResultLabel.Text =
+            $"結果：答對 {statistics.CorrectCount}　答錯 {statistics.IncorrectCount}　未作答 {statistics.NoAnswerCount}　正確率 {statistics.CorrectRate:P0}";
+        quizLeaderboardGrid.Rows.Clear();
+        foreach (var entry in leaderboard.Entries)
+        {
+            quizLeaderboardGrid.Rows.Add(
+                entry.Rank,
+                entry.DisplayName,
+                entry.TotalScore,
+                entry.CorrectCount,
+                entry.AnsweredCount);
+        }
+    }
+
     private void ApplyQuizState(QuizStateView state)
     {
         currentSessionId = state.SessionId;
@@ -230,6 +303,11 @@ public partial class HostDashboardForm : Form
         currentQuestionLabel.Text = $"目前題目：{state.QuestionText ?? "等待建立或開始題目"}";
         quizStateLabel.Text = $"狀態：{state.State}";
         quizProgressLabel.Text = $"已作答 {state.AnsweredCount} / {state.ParticipantCount}　在線 {state.OnlineCount}";
+        if (state.State != QuizState.Revealed)
+        {
+            quizResultLabel.Text = "結果：等待公布答案";
+            quizLeaderboardGrid.Rows.Clear();
+        }
         UpdateQuizButtons(state.State);
         ScheduleDeadlineRefresh(state);
     }
@@ -477,6 +555,23 @@ public partial class HostDashboardForm : Form
     private sealed record QuestionClosedNotification(Guid SessionId);
 
     private sealed record AnswerRevealedNotification(Guid SessionId);
+
+    private sealed record LeaderboardUpdatedNotification(Guid SessionId);
+
+    private sealed record QuizStatisticsView(
+        int CorrectCount,
+        int IncorrectCount,
+        int NoAnswerCount,
+        decimal CorrectRate);
+
+    private sealed record QuizLeaderboardView(IReadOnlyList<QuizLeaderboardEntryView> Entries);
+
+    private sealed record QuizLeaderboardEntryView(
+        int Rank,
+        string DisplayName,
+        int TotalScore,
+        int CorrectCount,
+        int AnsweredCount);
 
     private enum QuizState
     {

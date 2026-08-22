@@ -2,6 +2,7 @@ using EventHub.Application.Abstractions;
 using EventHub.Application.Events;
 using EventHub.Application.Participants;
 using EventHub.Application.Quizzes;
+using EventHub.Domain.Quizzes;
 using EventHub.Infrastructure.Persistence;
 using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Presence;
@@ -38,6 +39,8 @@ builder.Services.AddScoped<IQuizRepository, QuizRepository>();
 builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<ParticipantService>();
 builder.Services.AddScoped<ParticipantPresenceService>();
+builder.Services.AddSingleton<QuizScoreCalculator>();
+builder.Services.AddScoped<QuizScoringService>();
 builder.Services.AddScoped<QuizService>();
 
 var app = builder.Build();

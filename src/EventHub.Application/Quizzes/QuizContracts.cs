@@ -58,10 +58,54 @@ public sealed record CurrentQuizState(
     Guid? SelectedOptionId,
     bool HasAnswered,
     Guid? CorrectOptionId,
-    bool? IsCorrect);
+    bool? IsCorrect,
+    int? BaseScore,
+    int? SpeedBonus,
+    int? QuestionScore,
+    int? TotalScore,
+    int? Rank);
 
 public sealed record QuizStateQuery(
     Guid EventId,
     string? HostToken,
     Guid? ParticipantId,
     string? SessionToken);
+
+public sealed record RevealQuizQuestionResult(
+    Guid SessionId,
+    Guid CorrectOptionId,
+    bool WasAlreadyRevealed);
+
+public sealed record QuizLeaderboardEntry(
+    int Rank,
+    Guid ParticipantId,
+    string DisplayName,
+    string? Department,
+    string? TableNumber,
+    int TotalScore,
+    int CorrectCount,
+    int AnsweredCount);
+
+public sealed record QuizLeaderboard(
+    Guid EventId,
+    Guid? QuizId,
+    IReadOnlyList<QuizLeaderboardEntry> Entries);
+
+public sealed record ParticipantQuizScoreSummary(
+    Guid ParticipantId,
+    int TotalScore,
+    int CorrectCount,
+    int AnsweredCount,
+    int Rank);
+
+public sealed record QuizOptionStatistics(Guid OptionId, string Text, int AnswerCount);
+
+public sealed record QuizSessionStatistics(
+    Guid SessionId,
+    int ParticipantCount,
+    int AnsweredCount,
+    int CorrectCount,
+    int IncorrectCount,
+    int NoAnswerCount,
+    decimal CorrectRate,
+    IReadOnlyList<QuizOptionStatistics> OptionDistribution);

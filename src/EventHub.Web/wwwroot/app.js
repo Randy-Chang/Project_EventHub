@@ -10,6 +10,9 @@
   const quizCountdown = document.getElementById("quiz-countdown");
   const quizOptions = document.getElementById("quiz-options");
   const quizMessage = document.getElementById("quiz-message");
+  const quizScore = document.getElementById("quiz-score");
+  const leaderboard = document.getElementById("leaderboard");
+  const leaderboardList = document.getElementById("leaderboard-list");
   let connection;
   let activeEventId;
   let activeSession;
@@ -99,6 +102,7 @@
     connection.on("QuestionStarted", () => loadCurrentQuizState(eventId, session));
     connection.on("QuestionClosed", () => loadCurrentQuizState(eventId, session));
     connection.on("AnswerRevealed", () => loadCurrentQuizState(eventId, session));
+    connection.on("LeaderboardUpdated", () => loadLeaderboard(eventId, session));
     await connection.start();
     activeEventId = eventId;
     activeSession = session;
@@ -159,6 +163,8 @@
     clearInterval(countdownTimer);
     quizOptions.replaceChildren();
     quizMessage.classList.remove("error", "correct", "incorrect");
+    quizScore.hidden = true;
+    leaderboard.hidden = true;
     quizCountdown.hidden = true;
 
     if (state.state === quizState.waiting || !state.sessionId) {
@@ -207,6 +213,39 @@
     const resultLabel = !selected ? "未作答" : (state.isCorrect === true ? "答對！" : "答錯");
     quizMessage.textContent = `正確答案：${correctLabel}　你的答案：${selectedLabel}　${resultLabel}`;
     quizMessage.classList.add(state.isCorrect === true ? "correct" : "incorrect");
+    const questionScore = state.questionScore ?? 0;
+    const baseScore = state.baseScore ?? 0;
+    const speedBonus = state.speedBonus ?? 0;
+    quizScore.textContent = `本題 ${questionScore} 分（答對 ${baseScore} + 速度 ${speedBonus}）　累積 ${state.totalScore ?? 0} 分　第 ${state.rank ?? "-"} 名`;
+    quizScore.hidden = false;
+    if (activeEventId && activeSession) {
+      loadLeaderboard(activeEventId, activeSession);
+    }
+  }
+
+  async function loadLeaderboard(eventId, session) {
+    try {
+      const response = await fetch(
+        `/api/v1/events/${encodeURIComponent(eventId)}/quiz/leaderboard?top=5&participantId=${encodeURIComponent(session.participantId)}`,
+        { headers: { "X-Participant-Token": session.token } });
+      if (!response.ok) {
+        return;
+      }
+
+      const result = await response.json();
+      leaderboardList.replaceChildren();
+      result.entries.forEach((entry) => {
+        const item = document.createElement("li");
+        item.textContent = `${entry.displayName}　${entry.totalScore} 分`;
+        if (entry.participantId === session.participantId) {
+          item.classList.add("is-me");
+        }
+        leaderboardList.appendChild(item);
+      });
+      leaderboard.hidden = result.entries.length === 0;
+    } catch {
+      // Current score remains available even if this optional list cannot be refreshed.
+    }
   }
 
   function startCountdown(deadlineUtc) {

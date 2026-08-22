@@ -11,6 +11,7 @@ public sealed class QuizService(
     IParticipantPresenceStore presenceStore,
     EventService eventService,
     ParticipantService participantService,
+    QuizScoringService scoringService,
     TimeProvider timeProvider)
 {
     public async Task<QuizQuestionSummary> CreateQuestionAsync(
@@ -137,17 +138,10 @@ public sealed class QuizService(
         return await BuildStateAsync(session, question, null, cancellationToken);
     }
 
-    public async Task<CurrentQuizState> RevealAnswerAsync(
+    public Task<RevealQuizQuestionResult> RevealAnswerAsync(
         QuizHostCommand command,
-        CancellationToken cancellationToken)
-    {
-        await EnsureHostAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
-        var session = await GetRequiredSessionAsync(command.EventId, command.SessionId, cancellationToken);
-        session.Reveal(timeProvider.GetUtcNow());
-        await quizRepository.UpdateSessionAsync(session, cancellationToken);
-        var question = await GetRequiredQuestionAsync(session.QuestionId, cancellationToken);
-        return await BuildStateAsync(session, question, null, cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        scoringService.RevealAnswerAsync(command, cancellationToken);
 
     public async Task<CurrentQuizState> GetCurrentStateAsync(
         QuizStateQuery query,
@@ -201,6 +195,21 @@ public sealed class QuizService(
 
         var progress = await GetProgressAsync(session.EventId, session.Id, cancellationToken);
         var isRevealed = session.State == QuizQuestionState.Revealed;
+        ParticipantQuestionResult? questionResult = null;
+        (int TotalScore, int Rank)? totalAndRank = null;
+        if (isRevealed && participantId.HasValue)
+        {
+            questionResult = await quizRepository.GetQuestionResultAsync(
+                session.Id,
+                participantId.Value,
+                cancellationToken);
+            totalAndRank = await scoringService.GetParticipantTotalAndRankAsync(
+                session.EventId,
+                session.QuizId,
+                participantId.Value,
+                cancellationToken);
+        }
+
         return new CurrentQuizState(
             session.State,
             session.Id,
@@ -215,7 +224,12 @@ public sealed class QuizService(
             answer?.SelectedOptionId,
             answer is not null,
             isRevealed ? question.CorrectOptionId : null,
-            isRevealed && answer is not null ? answer.SelectedOptionId == question.CorrectOptionId : null);
+            isRevealed && answer is not null ? answer.SelectedOptionId == question.CorrectOptionId : null,
+            questionResult?.BaseScore,
+            questionResult?.SpeedBonus,
+            questionResult?.Score,
+            totalAndRank?.TotalScore,
+            totalAndRank?.Rank);
     }
 
     private async Task<CurrentQuizState> BuildWaitingStateAsync(Guid eventId, CancellationToken cancellationToken)
@@ -234,6 +248,11 @@ public sealed class QuizService(
             progress.OnlineCount,
             null,
             false,
+            null,
+            null,
+            null,
+            null,
+            null,
             null,
             null);
     }

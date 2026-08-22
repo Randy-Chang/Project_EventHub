@@ -100,3 +100,9 @@ button:disabled { opacity: 0.55; cursor: wait; }
 .quiz-message { margin: 16px 0 0; font-weight: 700; }
 .quiz-message.error, .quiz-message.incorrect { color: #b42318; }
 .quiz-message.correct { color: #12603d; }
+.quiz-score { margin-top: 12px; padding: 12px; border-radius: 10px; background: #fff; font-weight: 800; }
+.leaderboard { margin-top: 16px; padding-top: 12px; border-top: 1px solid #b9ddc9; }
+.leaderboard h4 { margin: 0 0 8px; }
+.leaderboard ol { margin: 0; padding-left: 28px; }
+.leaderboard li { padding: 4px 0; }
+.leaderboard li.is-me { color: #12603d; font-weight: 800; }

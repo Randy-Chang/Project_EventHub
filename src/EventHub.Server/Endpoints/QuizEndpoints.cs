@@ -150,10 +150,60 @@ public static class QuizEndpoints
             var state = await quizService.RevealAnswerAsync(
                 new QuizHostCommand(eventId, sessionId, ReadHostToken(httpRequest)),
                 cancellationToken);
-            var notification = new AnswerRevealedNotification(sessionId, state.CorrectOptionId!.Value);
+            var notification = new AnswerRevealedNotification(sessionId, state.CorrectOptionId);
             await BroadcastAsync(hubContext, eventId, client => client.AnswerRevealed(notification));
+            await BroadcastAsync(
+                hubContext,
+                eventId,
+                client => client.LeaderboardUpdated(new LeaderboardUpdatedNotification(sessionId)));
             logger.LogInformation("Answer revealed for session {SessionId} in event {EventId}.", sessionId, eventId);
             return Results.Ok(state);
+        });
+
+        group.MapGet("/leaderboard", async (
+            Guid eventId,
+            int? top,
+            Guid? participantId,
+            HttpRequest request,
+            QuizScoringService scoringService,
+            CancellationToken cancellationToken) =>
+        {
+            var leaderboard = await scoringService.GetLeaderboardAsync(
+                eventId,
+                top ?? 10,
+                request.Headers["X-Host-Token"].ToString(),
+                participantId,
+                request.Headers["X-Participant-Token"].ToString(),
+                cancellationToken);
+            return Results.Ok(leaderboard);
+        });
+
+        group.MapGet("/me/score", async (
+            Guid eventId,
+            Guid participantId,
+            HttpRequest request,
+            QuizScoringService scoringService,
+            CancellationToken cancellationToken) =>
+        {
+            var score = await scoringService.GetMyScoreAsync(
+                eventId,
+                participantId,
+                request.Headers["X-Participant-Token"].ToString(),
+                cancellationToken);
+            return Results.Ok(score);
+        });
+
+        group.MapGet("/sessions/{sessionId:guid}/stats", async (
+            Guid eventId,
+            Guid sessionId,
+            HttpRequest request,
+            QuizScoringService scoringService,
+            CancellationToken cancellationToken) =>
+        {
+            var statistics = await scoringService.GetSessionStatisticsAsync(
+                new QuizHostCommand(eventId, sessionId, ReadHostToken(request)),
+                cancellationToken);
+            return Results.Ok(statistics);
         });
 
         return endpoints;

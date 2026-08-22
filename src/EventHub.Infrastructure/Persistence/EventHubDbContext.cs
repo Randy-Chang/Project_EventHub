@@ -21,6 +21,10 @@ public sealed class EventHubDbContext(DbContextOptions<EventHubDbContext> option
 
     public DbSet<ParticipantAnswer> ParticipantAnswers => Set<ParticipantAnswer>();
 
+    public DbSet<ParticipantQuestionResult> ParticipantQuestionResults => Set<ParticipantQuestionResult>();
+
+    public DbSet<ParticipantQuizScore> ParticipantQuizScores => Set<ParticipantQuizScore>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(EventHubDbContext).Assembly);
