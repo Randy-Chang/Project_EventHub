@@ -113,6 +113,14 @@ public sealed class ParticipantService(
         return participants.Select(participant => ToSummary(participant, onlineIds.Contains(participant.Id))).ToArray();
     }
 
+    public async Task<int> GetParticipantCountAsync(
+        Guid eventId,
+        CancellationToken cancellationToken)
+    {
+        _ = await eventService.GetAsync(eventId, cancellationToken);
+        return await participantRepository.CountByEventAsync(eventId, cancellationToken);
+    }
+
     private static ParticipantSummary ToSummary(Participant participant, bool isOnline)
     {
         return new ParticipantSummary(

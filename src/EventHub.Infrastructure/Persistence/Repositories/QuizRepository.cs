@@ -30,6 +30,13 @@ public sealed class QuizRepository(EventHubDbContext dbContext) : IQuizRepositor
         return (lastOrder ?? 0) + 1;
     }
 
+    public Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken)
+    {
+        return dbContext.QuizQuestions.CountAsync(
+            question => question.QuizId == quizId,
+            cancellationToken);
+    }
+
     public async Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken)
     {
         dbContext.QuizQuestions.Add(question);

@@ -27,6 +27,27 @@ public static class EventEndpoints
             return Results.Ok(await eventService.GetAsync(eventId, cancellationToken));
         });
 
+        group.MapGet("/{eventId:guid}/join-info", async (
+            Guid eventId,
+            HttpRequest request,
+            EventService eventService,
+            CancellationToken cancellationToken) =>
+        {
+            var hostToken = request.Headers["X-Host-Token"].ToString();
+            return Results.Ok(await eventService.GetJoinInfoForHostAsync(
+                eventId,
+                hostToken,
+                cancellationToken));
+        });
+
+        group.MapGet("/join/{joinCode}", async (
+            string joinCode,
+            EventService eventService,
+            CancellationToken cancellationToken) =>
+        {
+            return Results.Ok(await eventService.ResolveJoinCodeAsync(joinCode, cancellationToken));
+        });
+
         return endpoints;
     }
 

@@ -1,4 +1,5 @@
 using EventHub.Application.Quizzes;
+using EventHub.Application.Events;
 using EventHub.Domain.Common;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -43,6 +44,14 @@ public sealed class ApiExceptionMiddleware(
                 _ => StatusCodes.Status409Conflict
             };
             await WriteProblemAsync(context, statusCode, exception.Message, exception.Code.ToString());
+        }
+        catch (EventJoinCodeGenerationException exception)
+        {
+            logger.LogError(exception, "Event join code generation exhausted all retries.");
+            await WriteProblemAsync(
+                context,
+                StatusCodes.Status503ServiceUnavailable,
+                exception.Message);
         }
         catch (Exception exception)
         {

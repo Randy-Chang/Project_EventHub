@@ -30,9 +30,16 @@ public static class ParticipantEndpoints
 
             if (result.IsNew)
             {
-                await hubContext.Clients
-                    .Group(PresenceHub.HostGroup(eventId))
-                    .ParticipantJoined(result.Participant);
+                var participantCount = await participantService.GetParticipantCountAsync(
+                    eventId,
+                    cancellationToken);
+                await Task.WhenAll(
+                    hubContext.Clients
+                        .Group(PresenceHub.HostGroup(eventId))
+                        .ParticipantJoined(result.Participant),
+                    hubContext.Clients
+                        .Group(PresenceHub.DisplayGroup(eventId))
+                        .ParticipantCountUpdated(new ParticipantCountNotification(eventId, participantCount)));
             }
 
             return Results.Ok(result);

@@ -7,8 +7,20 @@ public sealed record CreateEventCommand(string Name, DateTimeOffset EventDateUtc
 public sealed record EventSummary(
     Guid Id,
     string Name,
+    string JoinCode,
     DateTimeOffset EventDateUtc,
     EventState State,
     bool IsJoinOpen);
 
-public sealed record CreateEventResult(EventSummary Event, string HostToken);
+public sealed record EventJoinInfo(
+    Guid EventId,
+    string EventName,
+    string JoinCode,
+    string JoinUrl,
+    bool IsJoinOpen,
+    bool IsLoopback);
+
+public sealed record CreateEventResult(
+    EventSummary Event,
+    string HostToken,
+    EventJoinInfo JoinInfo);

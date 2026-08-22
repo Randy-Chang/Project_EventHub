@@ -6,6 +6,8 @@
   const joined = document.getElementById("joined");
   const welcome = document.getElementById("welcome");
   const eventIdInput = document.getElementById("event-id");
+  const eventIdField = document.getElementById("event-id-field");
+  const eventName = document.getElementById("event-name");
   const quizQuestion = document.getElementById("quiz-question");
   const quizCountdown = document.getElementById("quiz-countdown");
   const quizOptions = document.getElementById("quiz-options");
@@ -21,9 +23,41 @@
   const quizState = Object.freeze({ waiting: 0, open: 1, closed: 2, revealed: 3 });
 
   const queryEventId = new URLSearchParams(window.location.search).get("eventId");
-  if (queryEventId) {
+  const queryJoinCode = new URLSearchParams(window.location.search).get("joinCode");
+  if (queryJoinCode) {
+    form.hidden = true;
+    resolveJoinCode(queryJoinCode);
+  } else if (queryEventId) {
     eventIdInput.value = queryEventId;
     restoreExistingSession(queryEventId);
+  }
+
+  async function resolveJoinCode(joinCode) {
+    setStatus("正在取得活動資訊…", false);
+    try {
+      const response = await fetch(`/api/v1/events/join/${encodeURIComponent(joinCode)}`);
+      if (!response.ok) {
+        const problem = await response.json();
+        throw new Error(problem.detail || "找不到此活動，請確認 QR Code 或加入網址是否正確。");
+      }
+
+      const joinInfo = await response.json();
+      eventName.textContent = joinInfo.eventName;
+      eventName.hidden = false;
+      eventIdInput.value = joinInfo.eventId;
+      eventIdField.hidden = true;
+      if (!joinInfo.isJoinOpen) {
+        setStatus("此活動目前已停止加入。", true);
+        return;
+      }
+
+      form.hidden = false;
+      setStatus("請填寫資料加入活動", false);
+      await restoreExistingSession(joinInfo.eventId);
+    } catch (error) {
+      form.hidden = true;
+      setStatus(error.message || "找不到此活動，請確認 QR Code 或加入網址是否正確。", true);
+    }
   }
 
   form.addEventListener("submit", async (event) => {

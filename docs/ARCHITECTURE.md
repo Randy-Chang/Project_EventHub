@@ -2,7 +2,7 @@
 
 ## 1. 架構摘要
 
-EventHub 第一版採用 **Modular Monolith（模組化單體）**：一個 ASP.NET Core Server 承擔 REST、SignalR、Guest Web 靜態內容與 SQLite 存取；Host 是 WinForms Client；Display 是只讀的 Browser Client。這讓現場只需啟動一個 Server Process、開放一個 LAN Port，仍保留未來將相同 Server 部署到 Cloud 的能力。
+EventHub 第一版採用 **Modular Monolith（模組化單體）**：一個 ASP.NET Core Server 承擔 REST、SignalR、Guest Web 靜態內容與 SQLite 存取；Host 與 Display 是責任分離的 WinForms Client。這讓現場只需啟動一個 Server Process、開放一個 LAN Port，仍保留未來將相同 Server 部署到 Cloud 的能力。
 
 核心原則：
 
@@ -17,7 +17,7 @@ Guest Browser ── HTTPS/HTTP + SignalR ──┐
                                         │
 Host WinForms ─ HTTP + SignalR ───── EventHub.Server
                                         │
-Display Browser ─ HTTP + SignalR ───────┘
+Display WinForms ─ HTTP + SignalR ──────┘
                                         │
                               Application / Domain
                                         │
@@ -37,7 +37,7 @@ src/
 ├─ EventHub.Server
 ├─ EventHub.Web
 ├─ EventHub.Host
-└─ EventHub.Display                 # Display milestone 才建立實作
+└─ EventHub.Display                 # 投影機／LED Wall 的唯讀 WinForms 展示端
 tests/
 ├─ EventHub.Domain.Tests
 └─ EventHub.Application.Tests
@@ -69,7 +69,7 @@ WinForms Host Console。使用 `.Designer.cs` 保存 Layout，`.cs` 保存 Event
 
 ### EventHub.Display
 
-大螢幕 Browser UI。只讀取 Server State 與接收通知，不具備管理 Command。待 Display milestone 再建立，避免空殼專案造成假進度。
+大螢幕 WinForms UI。只透過 HTTP／SignalR 讀取 Server State 與接收通知，不具備管理 Command，也不參考 Infrastructure。提供 Waiting QR、Question、Closed、Result Statistics、Leaderboard、全螢幕、多螢幕選擇與 reconnect recovery。
 
 ### Tests
 
@@ -94,7 +94,7 @@ Domain Tests 驗證狀態轉換與純規則；Application Tests 以 Fake Port �
 
 主要 Entity：
 
-- `Event(Id, Name, EventDate, State, IsJoinOpen, HostCredentialHash)`
+- `Event(Id, Name, EventDate, State, DisplayMode, IsJoinOpen, HostCredentialHash)`
 - `Participant(Id, EventId, Name, Nickname, EmployeeNumber, Department, TableNumber, IsCheckedIn, Score, HasWon, SessionCredentialHash, LastSeenAtUtc)`
 - `Quiz(Id, EventId, Title)`
 - `Question(Id, QuizId, Prompt, ImageStorageKey?, Duration, BaseScore, SpeedBonusMax, Order)`
@@ -313,11 +313,12 @@ Acceptance Criteria：
 1. **Foundation + Presence Slice**：本文件、Solution、Event/Participant、SQLite、Guest Join、SignalR Presence、Host Dashboard、Tests。
 2. **Event Operations + Recovery**：Join Policy、活動狀態、QR Code、Host 設定、Migration/Backup 與 Startup Recovery。
 3. **Quiz Vertical Slice**：Question Authoring、State Machine、Answer Idempotency、Score Calculator、即時人數與個人排名。
-4. **Image Quiz + Display**：共用 Question Image、Display 題目/倒數/答案/Top N。
-5. **Poll**：匿名顯示政策、唯一 Vote、即時統計與 Recovery。
-6. **Lucky Draw**：Prize、Eligibility、Idempotent Draw、Confirm/Redraw、Audit 與 Display Animation。
-7. **Photo Wall**：安全 Upload、Storage、Moderation、輪播與未來 Print Port 邊界。
-8. **Hardening**：負載測試、LAN Runbook、Firewall/QR Address 檢測、Backup/Restore、Security Review 與活動演練。
+4. **Display**：Waiting QR、題目/倒數、答案統計、Top N、Host presentation control 與 recovery。
+5. **Image Quiz**：沿用 Quiz 核心加入圖片題目。
+6. **Poll**：匿名顯示政策、唯一 Vote、即時統計與 Recovery。
+7. **Lucky Draw**：Prize、Eligibility、Idempotent Draw、Confirm/Redraw、Audit 與 Display Animation。
+8. **Photo Wall**：安全 Upload、Storage、Moderation、輪播與未來 Print Port 邊界。
+9. **Hardening**：負載測試、LAN Runbook、Firewall/QR Address 檢測、Backup/Restore、Security Review 與活動演練。
 
 每個 Milestone 都以可執行 Vertical Slice 完成，不先一次建立所有 Entity、Interface 與空 Service。
 

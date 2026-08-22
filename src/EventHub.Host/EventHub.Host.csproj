@@ -10,6 +10,11 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.19" />
+    <PackageReference Include="QRCoder" Version="1.8.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Shared\EventHub.Presentation\QrCodePngGenerator.cs" Link="Presentation\QrCodePngGenerator.cs" />
   </ItemGroup>
 
 </Project>

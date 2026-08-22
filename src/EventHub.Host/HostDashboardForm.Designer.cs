@@ -33,6 +33,20 @@ partial class HostDashboardForm
         connectButton = new Button();
         statusLabel = new Label();
         onlineCountLabel = new Label();
+        joinInfoGroupBox = new GroupBox();
+        joinEventNameLabel = new Label();
+        joinCodeTitleLabel = new Label();
+        joinCodeValueLabel = new Label();
+        joinUrlTextBox = new TextBox();
+        copyJoinUrlButton = new Button();
+        joinUrlWarningLabel = new Label();
+        joinQrCodePictureBox = new PictureBox();
+        displayControlGroupBox = new GroupBox();
+        displayModeValueLabel = new Label();
+        showWaitingButton = new Button();
+        showQuestionButton = new Button();
+        showResultButton = new Button();
+        showLeaderboardButton = new Button();
         participantGrid = new DataGridView();
         nameColumn = new DataGridViewTextBoxColumn();
         employeeNumberColumn = new DataGridViewTextBoxColumn();
@@ -70,6 +84,9 @@ partial class HostDashboardForm
         totalScoreColumn = new DataGridViewTextBoxColumn();
         correctCountColumn = new DataGridViewTextBoxColumn();
         answeredCountColumn = new DataGridViewTextBoxColumn();
+        joinInfoGroupBox.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)joinQrCodePictureBox).BeginInit();
+        displayControlGroupBox.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)participantGrid).BeginInit();
         quizGroupBox.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).BeginInit();
@@ -200,6 +217,102 @@ partial class HostDashboardForm
         onlineCountLabel.Text = "在線 0 / 總計 0";
         onlineCountLabel.TextAlign = ContentAlignment.TopRight;
         //
+        // joinInfoGroupBox
+        //
+        joinInfoGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        joinInfoGroupBox.Controls.Add(joinEventNameLabel);
+        joinInfoGroupBox.Controls.Add(joinCodeTitleLabel);
+        joinInfoGroupBox.Controls.Add(joinCodeValueLabel);
+        joinInfoGroupBox.Controls.Add(joinUrlTextBox);
+        joinInfoGroupBox.Controls.Add(copyJoinUrlButton);
+        joinInfoGroupBox.Controls.Add(joinUrlWarningLabel);
+        joinInfoGroupBox.Controls.Add(joinQrCodePictureBox);
+        joinInfoGroupBox.Location = new Point(20, 170);
+        joinInfoGroupBox.Name = "joinInfoGroupBox";
+        joinInfoGroupBox.Size = new Size(825, 190);
+        joinInfoGroupBox.TabIndex = 14;
+        joinInfoGroupBox.TabStop = false;
+        joinInfoGroupBox.Text = "活動加入資訊";
+        joinEventNameLabel.AutoEllipsis = true;
+        joinEventNameLabel.Location = new Point(15, 25);
+        joinEventNameLabel.Name = "joinEventNameLabel";
+        joinEventNameLabel.Size = new Size(560, 20);
+        joinEventNameLabel.Text = "活動：尚未建立或連線";
+        joinCodeTitleLabel.AutoSize = true;
+        joinCodeTitleLabel.Location = new Point(15, 57);
+        joinCodeTitleLabel.Name = "joinCodeTitleLabel";
+        joinCodeTitleLabel.Text = "Join Code";
+        joinCodeValueLabel.AutoSize = true;
+        joinCodeValueLabel.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
+        joinCodeValueLabel.Location = new Point(90, 51);
+        joinCodeValueLabel.Name = "joinCodeValueLabel";
+        joinCodeValueLabel.Text = "------";
+        joinUrlTextBox.Location = new Point(15, 88);
+        joinUrlTextBox.Name = "joinUrlTextBox";
+        joinUrlTextBox.ReadOnly = true;
+        joinUrlTextBox.Size = new Size(560, 23);
+        copyJoinUrlButton.Location = new Point(15, 125);
+        copyJoinUrlButton.Name = "copyJoinUrlButton";
+        copyJoinUrlButton.Size = new Size(100, 30);
+        copyJoinUrlButton.Text = "複製網址";
+        copyJoinUrlButton.UseVisualStyleBackColor = true;
+        copyJoinUrlButton.Click += copyJoinUrlButton_Click;
+        joinUrlWarningLabel.AutoEllipsis = true;
+        joinUrlWarningLabel.Location = new Point(125, 132);
+        joinUrlWarningLabel.Name = "joinUrlWarningLabel";
+        joinUrlWarningLabel.Size = new Size(450, 35);
+        joinUrlWarningLabel.Text = "建立活動後顯示加入網址與 QR Code。";
+        joinQrCodePictureBox.BorderStyle = BorderStyle.FixedSingle;
+        joinQrCodePictureBox.Location = new Point(645, 22);
+        joinQrCodePictureBox.Name = "joinQrCodePictureBox";
+        joinQrCodePictureBox.Size = new Size(150, 150);
+        joinQrCodePictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+        joinQrCodePictureBox.TabStop = false;
+        //
+        // displayControlGroupBox
+        //
+        displayControlGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        displayControlGroupBox.Controls.Add(displayModeValueLabel);
+        displayControlGroupBox.Controls.Add(showWaitingButton);
+        displayControlGroupBox.Controls.Add(showQuestionButton);
+        displayControlGroupBox.Controls.Add(showResultButton);
+        displayControlGroupBox.Controls.Add(showLeaderboardButton);
+        displayControlGroupBox.Location = new Point(20, 375);
+        displayControlGroupBox.Name = "displayControlGroupBox";
+        displayControlGroupBox.Size = new Size(825, 70);
+        displayControlGroupBox.TabIndex = 15;
+        displayControlGroupBox.TabStop = false;
+        displayControlGroupBox.Text = "大螢幕控制";
+        displayModeValueLabel.AutoSize = true;
+        displayModeValueLabel.Location = new Point(15, 32);
+        displayModeValueLabel.Name = "displayModeValueLabel";
+        displayModeValueLabel.Size = new Size(112, 15);
+        displayModeValueLabel.Text = "目前畫面：Waiting";
+        showWaitingButton.Location = new Point(220, 24);
+        showWaitingButton.Name = "showWaitingButton";
+        showWaitingButton.Size = new Size(125, 32);
+        showWaitingButton.Text = "顯示等待畫面";
+        showWaitingButton.UseVisualStyleBackColor = true;
+        showWaitingButton.Click += showWaitingButton_Click;
+        showQuestionButton.Location = new Point(355, 24);
+        showQuestionButton.Name = "showQuestionButton";
+        showQuestionButton.Size = new Size(125, 32);
+        showQuestionButton.Text = "顯示題目";
+        showQuestionButton.UseVisualStyleBackColor = true;
+        showQuestionButton.Click += showQuestionButton_Click;
+        showResultButton.Location = new Point(490, 24);
+        showResultButton.Name = "showResultButton";
+        showResultButton.Size = new Size(125, 32);
+        showResultButton.Text = "顯示結果";
+        showResultButton.UseVisualStyleBackColor = true;
+        showResultButton.Click += showResultButton_Click;
+        showLeaderboardButton.Location = new Point(625, 24);
+        showLeaderboardButton.Name = "showLeaderboardButton";
+        showLeaderboardButton.Size = new Size(155, 32);
+        showLeaderboardButton.Text = "顯示排行榜";
+        showLeaderboardButton.UseVisualStyleBackColor = true;
+        showLeaderboardButton.Click += showLeaderboardButton_Click;
+        //
         // participantGrid
         //
         participantGrid.AllowUserToAddRows = false;
@@ -208,14 +321,14 @@ partial class HostDashboardForm
         participantGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         participantGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
         participantGrid.Columns.AddRange(new DataGridViewColumn[] { nameColumn, employeeNumberColumn, departmentColumn, tableNumberColumn, onlineColumn, scoreColumn });
-        participantGrid.Location = new Point(20, 170);
+        participantGrid.Location = new Point(20, 460);
         participantGrid.MultiSelect = false;
         participantGrid.Name = "participantGrid";
         participantGrid.ReadOnly = true;
         participantGrid.RowHeadersVisible = false;
         participantGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        participantGrid.Size = new Size(825, 245);
-        participantGrid.TabIndex = 14;
+        participantGrid.Size = new Size(825, 160);
+        participantGrid.TabIndex = 15;
         //
         // columns
         //
@@ -265,10 +378,10 @@ partial class HostDashboardForm
         quizGroupBox.Controls.Add(quizResultLabel);
         quizGroupBox.Controls.Add(quizLeaderboardLabel);
         quizGroupBox.Controls.Add(quizLeaderboardGrid);
-        quizGroupBox.Location = new Point(20, 430);
+        quizGroupBox.Location = new Point(20, 635);
         quizGroupBox.Name = "quizGroupBox";
         quizGroupBox.Size = new Size(825, 475);
-        quizGroupBox.TabIndex = 15;
+        quizGroupBox.TabIndex = 16;
         quizGroupBox.TabStop = false;
         quizGroupBox.Text = "Quiz 快問快答";
         //
@@ -415,9 +528,12 @@ partial class HostDashboardForm
         //
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        ClientSize = new Size(865, 925);
+        AutoScroll = true;
+        ClientSize = new Size(865, 1130);
         Controls.Add(quizGroupBox);
         Controls.Add(participantGrid);
+        Controls.Add(displayControlGroupBox);
+        Controls.Add(joinInfoGroupBox);
         Controls.Add(onlineCountLabel);
         Controls.Add(statusLabel);
         Controls.Add(connectButton);
@@ -437,6 +553,11 @@ partial class HostDashboardForm
         StartPosition = FormStartPosition.CenterScreen;
         Text = "EventHub Host Console";
         FormClosed += HostDashboardForm_FormClosed;
+        joinInfoGroupBox.ResumeLayout(false);
+        joinInfoGroupBox.PerformLayout();
+        ((System.ComponentModel.ISupportInitialize)joinQrCodePictureBox).EndInit();
+        displayControlGroupBox.ResumeLayout(false);
+        displayControlGroupBox.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)participantGrid).EndInit();
         quizGroupBox.ResumeLayout(false);
         quizGroupBox.PerformLayout();
@@ -462,6 +583,20 @@ partial class HostDashboardForm
     private Button connectButton;
     private Label statusLabel;
     private Label onlineCountLabel;
+    private GroupBox joinInfoGroupBox;
+    private Label joinEventNameLabel;
+    private Label joinCodeTitleLabel;
+    private Label joinCodeValueLabel;
+    private TextBox joinUrlTextBox;
+    private Button copyJoinUrlButton;
+    private Label joinUrlWarningLabel;
+    private PictureBox joinQrCodePictureBox;
+    private GroupBox displayControlGroupBox;
+    private Label displayModeValueLabel;
+    private Button showWaitingButton;
+    private Button showQuestionButton;
+    private Button showResultButton;
+    private Button showLeaderboardButton;
     private DataGridView participantGrid;
     private DataGridViewTextBoxColumn nameColumn;
     private DataGridViewTextBoxColumn employeeNumberColumn;

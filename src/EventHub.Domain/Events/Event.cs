@@ -11,16 +11,19 @@ public sealed class Event
     private Event(
         Guid id,
         string name,
+        string joinCode,
         DateTimeOffset eventDateUtc,
         string hostCredentialHash,
         DateTimeOffset createdAtUtc)
     {
         Id = id;
         Name = name;
+        JoinCode = joinCode;
         EventDateUtc = eventDateUtc;
         HostCredentialHash = hostCredentialHash;
         CreatedAtUtc = createdAtUtc;
         State = EventState.Draft;
+        DisplayMode = DisplayMode.Waiting;
         IsJoinOpen = true;
         Version = 1;
     }
@@ -29,9 +32,13 @@ public sealed class Event
 
     public string Name { get; private set; } = string.Empty;
 
+    public string JoinCode { get; private set; } = string.Empty;
+
     public DateTimeOffset EventDateUtc { get; private set; }
 
     public EventState State { get; private set; }
+
+    public DisplayMode DisplayMode { get; private set; }
 
     public bool IsJoinOpen { get; private set; }
 
@@ -43,6 +50,7 @@ public sealed class Event
 
     public static Event Create(
         string name,
+        string joinCode,
         DateTimeOffset eventDateUtc,
         string hostCredentialHash,
         DateTimeOffset createdAtUtc)
@@ -63,7 +71,13 @@ public sealed class Event
             throw new DomainValidationException("Host credential 不可為空白。");
         }
 
-        return new Event(Guid.NewGuid(), normalizedName, eventDateUtc, hostCredentialHash, createdAtUtc);
+        return new Event(
+            Guid.NewGuid(),
+            normalizedName,
+            EventJoinCode.Normalize(joinCode),
+            eventDateUtc,
+            hostCredentialHash,
+            createdAtUtc);
     }
 
     public void SetJoinOpen(bool isOpen)
@@ -74,6 +88,12 @@ public sealed class Event
         }
 
         IsJoinOpen = isOpen;
+        Version++;
+    }
+
+    public void SetDisplayMode(DisplayMode displayMode)
+    {
+        DisplayMode = displayMode;
         Version++;
     }
 

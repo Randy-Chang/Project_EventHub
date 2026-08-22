@@ -1,12 +1,13 @@
 # EventHub 使用說明書
 
-本說明書適用於目前的 `Project_EventHub` 開發版本，主要說明如何使用 Visual Studio 2022 啟動 Server 與 Host Console、建立活動、讓 Guest 加入，以及操作 Quiz 快問快答。
+本說明書適用於目前的 `Project_EventHub` 開發版本，主要說明如何使用 Visual Studio 2022 啟動 Server、Host Console 與 Display、建立活動、讓 Guest 加入，以及操作 Quiz 快問快答。
 
-> 最容易忘記的重點：使用 VS2022 啟動時，Server URL 是 `http://localhost:5029`。使用 README 的區域網路命令啟動時，Server URL 才是 `http://<電腦 IP>:5000`。兩種 Port 不要混用。
+> 最容易忘記的重點：VS2022 的 `http` Profile（`localhost:5029`）只供同一台電腦測試。活動當天請使用 `Local Event` Profile 或 LAN 啟動命令，並把 `JoinBaseUrl` 設成活動主機的實際 IPv4；手機不能連 localhost。
 
 ## 1. 目前可以使用的功能
 
 - Host 建立活動。
+- Host 顯示持久化 Join Code、加入網址與 QR Code，並可複製網址。
 - Guest 使用瀏覽器加入活動。
 - Host 即時查看已加入與在線 Participant。
 - Host 建立單選 Quiz 題目。
@@ -16,12 +17,11 @@
 - Guest 在公布答案後查看正確答案及自己的作答結果。
 - Guest 重新整理網頁後恢復原本身份與 Quiz 狀態。
 - Server 重啟後從 SQLite 恢復活動、Participant、題目、場次及答案。
+- Display 可顯示 Waiting QR、題目倒數、作答結束、答案統計與 Top 10 排行榜。
+- Display 可選擇投影螢幕、全螢幕顯示，並在 reconnect 後恢復 Server 保存的畫面模式。
 
 目前尚未完成：
 
-- QR Code 產生。
-- Score 與速度 Bonus。
-- Leaderboard。
 - Poll、Lucky Draw、Photo Wall、Image Quiz。
 - Host Token 遺失後的管理畫面或恢復功能。
 
@@ -46,9 +46,10 @@
 3. 選擇「多個啟始專案」。
 4. 將 `EventHub.Server` 設定為「啟動」。
 5. 將 `EventHub.Host` 設定為「啟動」。
-6. 其他 Project 設定為「無」。
-7. 確認 `EventHub.Server` 使用 `http` Profile。
-8. 按「確定」。
+6. 將 `EventHub.Display` 設定為「啟動」。
+7. 其他 Project 設定為「無」。
+8. 確認 `EventHub.Server` 使用 `http` Profile。
+9. 按「確定」。
 
 ### 2.3 啟動
 
@@ -87,11 +88,14 @@ http://localhost:5029/health
 5. 建立成功後，畫面會自動填入：
    - 活動 ID
    - Host Token
+   - 活動名稱與 Join Code
+   - Join URL 與 QR Code
 6. Host 會自動連接 SignalR，不需要再次按「連線監看」。
 
 請立即將活動 ID 與 Host Token 保存到安全的位置，例如活動專用的文字檔。
 
-- 活動 ID：提供 Guest 加入活動使用。
+- Join URL／QR Code：提供 Guest 加入活動使用。
+- 活動 ID：系統內部識別及 Host 重新連線使用，不需公開給 Guest。
 - Host Token：只有 Host 管理操作使用，不可公開給 Guest。
 - 目前若 Host Token 遺失，還沒有管理畫面可以找回。
 
@@ -101,16 +105,16 @@ http://localhost:5029/health
 
 ### 4.1 在同一台電腦測試
 
-將 Host Console 顯示的活動 ID 放到網址中：
+直接開啟 Host Console 顯示的 Join URL：
 
 ```text
-http://localhost:5029/?eventId=<活動 ID>
+http://localhost:5029/join/<Join Code>
 ```
 
 例如：
 
 ```text
-http://localhost:5029/?eventId=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+http://localhost:5029/join/8K3F2A
 ```
 
 Guest 填寫：
@@ -123,7 +127,7 @@ Guest 填寫：
 
 按「加入活動」後，Host Console 的 Participant 清單應立即出現此人。
 
-目前尚未實作 QR Code，因此需先複製或傳送 Guest 網址。
+在電腦測試時可按「複製網址」或直接掃描畫面 QR Code；但 localhost QR Code 只能在同機測試，手機無法連線，Host 會顯示警告。
 
 ### 4.2 Guest 身份與重新整理
 
@@ -204,36 +208,65 @@ Closed   已停止作答，尚未公布答案
 Revealed 已公布正確答案
 ```
 
+### 5.7 大螢幕 Display
+
+1. 啟動 `EventHub.Display`。
+2. Server API URL 輸入與 Host 相同的 Server，例如本機測試使用 `http://localhost:5029`。
+3. Event ID 輸入 Host Console 顯示的活動 ID。
+4. 選擇投影機／第二螢幕；沒有第二螢幕時可選 Primary 並取消「全螢幕」。
+5. 按「連線展示」。
+6. Host 的「大螢幕控制」可切換等待、題目、結果與排行榜。
+
+操作關係：
+
+- Host 開始題目：Display 自動顯示題目與 Server-time countdown。
+- Host 關閉作答：Display 顯示「時間到，等待公布答案」，不顯示正確答案。
+- Host 公布答案：Display 自動顯示正確答案、答對率與選項分布。
+- Host 按「顯示排行榜」：Display 顯示 Top 10。
+- Host 按「顯示等待畫面」：Display 回到 QR Code 與加入人數。
+
+Display 快捷鍵：
+
+- `F11`：切換全螢幕。
+- `Esc`：離開全螢幕並顯示連線設定。
+
+Display 關閉重開、SignalR reconnect 或 Server restart 後，都會呼叫 Current Display State API 恢復 Server 保存的畫面。Display 不會自行在 Result、Leaderboard、Waiting 間定時跳轉。
+
 ## 6. 使用手機進行區域網路測試
 
 VS2022 的 `localhost:5029` 模式主要供同一台電腦測試。手機不能使用 `localhost`，因為手機上的 `localhost` 代表手機自己。
 
-需要手機加入時，請先停止 VS2022 中的 Server，再於 Repository 根目錄開啟 PowerShell，執行：
+需要手機加入時，請先停止 VS2022 中的 Server，以 `ipconfig` 找到 Host 電腦 Wi-Fi IPv4，再於 Repository 根目錄開啟 PowerShell。以下以 `192.168.1.20` 為例：
 
 ```powershell
+$env:EventHub__JoinBaseUrl = "http://192.168.1.20:5000"
 dotnet run --project src/EventHub.Server/EventHub.Server.csproj --urls http://0.0.0.0:5000
 ```
+
+若使用 VS2022，也可選擇 Server 的 `Local Event` Profile；啟動前請先將 `src/EventHub.Server/Properties/launchSettings.json` 中的範例 IP `192.168.1.100` 改為實際 IPv4。
 
 接著：
 
 1. 使用 `ipconfig` 找出 Host 電腦 Wi-Fi 網卡的 IPv4 位址，例如 `192.168.1.20`。
-2. Host Console 的 Server URL 改成：
+2. Host Console 的 Server URL 可使用同機 API 位址：
 
 ```text
-http://192.168.1.20:5000
+http://localhost:5000
 ```
 
-3. Guest 手機使用：
+3. 建立活動後，確認 Host 顯示的 Join URL 是實際 LAN IP，例如：
 
 ```text
-http://192.168.1.20:5000/?eventId=<活動 ID>
+http://192.168.1.20:5000/join/8K3F2A
 ```
 
-4. 手機與 Host 電腦必須連接同一個 Wi-Fi。
-5. Windows Firewall 必須允許 TCP Port 5000 的 Private Network inbound traffic。
-6. Wi-Fi AP 不可啟用 Client Isolation／AP Isolation。
+4. 用手機掃描 Host 顯示的 QR Code；瀏覽器會直接進入該活動的加入頁。
 
-區域網路模式的重點是：Host Console、Guest 網址與 Server 實際監聽的 Port 必須完全相同。
+5. 手機與 Host 電腦必須連接同一個 Wi-Fi。
+6. Windows Firewall 必須允許 TCP Port 5000 的 Private Network inbound traffic。
+7. Wi-Fi AP 不可啟用 Client Isolation／AP Isolation。
+
+區域網路模式的重點是：Server 必須監聽 `0.0.0.0:5000`，而 `JoinBaseUrl` 必須使用手機可達的 LAN IP。Host 的 API Base URL 可以使用 localhost。
 
 ## 7. 關閉與再次啟動
 
@@ -250,6 +283,8 @@ http://192.168.1.20:5000/?eventId=<活動 ID>
 3. 輸入與 Server 相同的 URL。
 4. 將先前保存的活動 ID 與 Host Token 填回 Host Console。
 5. 按「連線監看」。
+
+Host 會向 Server 重新取得相同 Join Code／Join URL，並重新產生 QR Code；QR 圖片本身不存入資料庫。
 
 Server 重啟不會刪除活動資料，但 Host Console 目前不會自動保存活動 ID 與 Host Token，因此必須由使用者另外保存。
 
@@ -297,13 +332,13 @@ Host Console 不會自動猜測 Server Port。請以 Server Console 的 `Now lis
 1. 手機網址不可使用 `localhost`。
 2. 手機與電腦是否在同一個 Wi-Fi。
 3. Server 是否以 `http://0.0.0.0:5000` 啟動。
-4. Host 電腦 IPv4 是否正確。
+4. Host 顯示的 Join URL 是否為目前正確的 LAN IPv4，而不是 localhost 或舊 IP。
 5. Windows Firewall 是否允許 Port 5000。
 6. Wi-Fi 是否啟用 Client Isolation。
 
 ### 9.4 Guest 加入了，但 Host 沒有出現
 
-1. 確認 Host 與 Guest 使用相同 Event ID。
+1. 確認 Guest 是從 Host 顯示的同一個 Join URL／QR Code 進入。
 2. 確認 Host、Guest 使用同一台 Server 與同一個 Port。
 3. 確認 Host Console 顯示已連線。
 4. 重新按 Host 的「連線監看」，讓 Host 從 REST 重新載入 Participant 清單。
@@ -331,8 +366,14 @@ Host Console 不會自動猜測 Server Port。請以 Server Console 的 `Now lis
 - [ ] Host Console 使用相同的 Server URL 與 Port。
 - [ ] `/health` 回傳 `ok`。
 - [ ] 活動 ID 與 Host Token 已另外保存。
+- [ ] Join URL 顯示實際 LAN IP，沒有 localhost 警告。
+- [ ] 手機可掃描 QR Code 並顯示正確活動名稱。
 - [ ] 測試 Guest 可以加入。
 - [ ] Host 可以即時看到 Guest。
+- [ ] Display Waiting 畫面顯示 EventName、QR Code、Join Code 與 Participant Count。
+- [ ] Host Start／Close／Reveal 時 Display 顯示正確階段，Reveal 前沒有正確答案。
+- [ ] Host 可切換排行榜與等待畫面。
+- [ ] Display 關閉重開後可恢復目前畫面。
 - [ ] 測試 Quiz 建立、開始、作答、關閉及公布答案。
 - [ ] Browser Refresh 後可以恢復身份與 Quiz 狀態。
 - [ ] 手機與 Host 使用相同 Wi-Fi。
@@ -347,7 +388,8 @@ Host Console 不會自動猜測 Server Port。請以 Server Console 的 `Now lis
 → Host Server URL 填 http://localhost:5029
 → 建立活動
 → 保存活動 ID 與 Host Token
-→ Guest 開啟含 eventId 的網址並加入
+→ Display 輸入 Server URL 與 Event ID 並連線
+→ Guest 開啟 Join URL／掃描 QR Code 並加入
 → Host 建立 Quiz 題目
 → 開始題目
 → Guest 作答

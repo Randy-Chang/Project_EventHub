@@ -102,6 +102,14 @@ public sealed class QuizScoringService(
         CancellationToken cancellationToken)
     {
         await AuthorizeViewerAsync(eventId, hostToken, participantId, participantToken, cancellationToken);
+        return await GetPublicLeaderboardAsync(eventId, top, cancellationToken);
+    }
+
+    public async Task<QuizLeaderboard> GetPublicLeaderboardAsync(
+        Guid eventId,
+        int top,
+        CancellationToken cancellationToken)
+    {
         var quiz = await quizRepository.GetByEventAsync(eventId, cancellationToken);
         if (quiz is null)
         {
@@ -144,9 +152,20 @@ public sealed class QuizScoringService(
         CancellationToken cancellationToken)
     {
         await EnsureHostAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
-        var data = await quizRepository.GetSessionStatisticsAsync(
+        return await GetPublicSessionStatisticsAsync(
             command.EventId,
             command.SessionId,
+            cancellationToken);
+    }
+
+    public async Task<QuizSessionStatistics> GetPublicSessionStatisticsAsync(
+        Guid eventId,
+        Guid sessionId,
+        CancellationToken cancellationToken)
+    {
+        var data = await quizRepository.GetSessionStatisticsAsync(
+            eventId,
+            sessionId,
             cancellationToken)
             ?? throw new QuizApplicationException(QuizErrorCode.SessionNotFound, "找不到指定的題目場次。");
         var question = await quizRepository.GetQuestionAsync(data.QuestionId, cancellationToken)
@@ -154,7 +173,7 @@ public sealed class QuizScoringService(
         var counts = data.OptionCounts.ToDictionary(item => item.OptionId, item => item.AnswerCount);
         var incorrectCount = data.AnsweredCount - data.CorrectCount;
         return new QuizSessionStatistics(
-            command.SessionId,
+            sessionId,
             data.ParticipantCount,
             data.AnsweredCount,
             data.CorrectCount,

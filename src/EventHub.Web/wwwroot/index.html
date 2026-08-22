@@ -10,10 +10,11 @@
   <main class="card">
     <p class="eyebrow">EVENTHUB</p>
     <h1>加入活動</h1>
+    <h2 id="event-name" class="event-name" hidden></h2>
     <p id="status" class="status" aria-live="polite">請輸入活動資訊</p>
 
     <form id="join-form">
-      <label>活動 ID<input id="event-id" autocomplete="off" required></label>
+      <label id="event-id-field">活動 ID<input id="event-id" autocomplete="off" required></label>
       <label>姓名<input id="name" autocomplete="name" maxlength="100" required></label>
       <label>暱稱<input id="nickname" maxlength="100"></label>
       <label>員工編號<input id="employee-number" maxlength="50"></label>

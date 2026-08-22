@@ -1,5 +1,6 @@
 using EventHub.Application.Participants;
 using EventHub.Application.Quizzes;
+using EventHub.Domain.Events;
 
 namespace EventHub.Server.Hubs;
 
@@ -18,6 +19,10 @@ public interface IEventClient
     Task AnswerRevealed(AnswerRevealedNotification notification);
 
     Task LeaderboardUpdated(LeaderboardUpdatedNotification notification);
+
+    Task ParticipantCountUpdated(ParticipantCountNotification notification);
+
+    Task DisplayModeChanged(DisplayModeChangedNotification notification);
 }
 
 public sealed record QuestionStartedNotification(
@@ -39,3 +44,7 @@ public sealed record QuestionClosedNotification(Guid SessionId);
 public sealed record AnswerRevealedNotification(Guid SessionId, Guid CorrectOptionId);
 
 public sealed record LeaderboardUpdatedNotification(Guid SessionId);
+
+public sealed record ParticipantCountNotification(Guid EventId, int ParticipantCount);
+
+public sealed record DisplayModeChangedNotification(Guid EventId, DisplayMode Mode);

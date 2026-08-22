@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Runtime.InteropServices;
+using EventHub.Presentation;
 using Microsoft.AspNetCore.SignalR.Client;
 
 namespace EventHub.Host;
@@ -6,6 +8,7 @@ namespace EventHub.Host;
 public partial class HostDashboardForm : Form
 {
     private readonly HttpClient httpClient = new();
+    private readonly QrCodePngGenerator qrCodeGenerator = new();
     private HubConnection? hubConnection;
     private Guid? selectedQuestionId;
     private Guid? currentSessionId;
@@ -30,6 +33,7 @@ public partial class HostDashboardForm : Form
                 ?? throw new InvalidOperationException("Server 未回傳活動資料。");
             eventIdTextBox.Text = result.Event.Id.ToString();
             hostTokenTextBox.Text = result.HostToken;
+            ApplyJoinInfo(result.JoinInfo);
             statusLabel.Text = $"已建立：{result.Event.Name}";
             await ConnectToEventAsync();
         });
@@ -67,6 +71,8 @@ public partial class HostDashboardForm : Form
         hubConnection.On<QuestionClosedNotification>("QuestionClosed", _ => RefreshQuizStateThreadSafe(eventId));
         hubConnection.On<AnswerRevealedNotification>("AnswerRevealed", _ => RefreshQuizStateThreadSafe(eventId));
         hubConnection.On<LeaderboardUpdatedNotification>("LeaderboardUpdated", _ => RefreshQuizResultsThreadSafe(eventId));
+        hubConnection.On<DisplayModeChangedNotification>("DisplayModeChanged", notification =>
+            UpdateDisplayModeThreadSafe(notification.Mode));
         hubConnection.Reconnecting += _ => UpdateStatusAsync("SignalR 重新連線中…");
         hubConnection.Reconnected += _ =>
         {
@@ -75,6 +81,8 @@ public partial class HostDashboardForm : Form
             {
                 await LoadParticipantsAsync(eventId);
                 await LoadQuizStateAsync(eventId);
+                await LoadJoinInfoAsync(eventId);
+                await LoadDisplayStateAsync(eventId);
             });
             return Task.CompletedTask;
         };
@@ -83,7 +91,58 @@ public partial class HostDashboardForm : Form
         await hubConnection.StartAsync();
         await LoadParticipantsAsync(eventId);
         await LoadQuizStateAsync(eventId);
+        await LoadJoinInfoAsync(eventId);
+        await LoadDisplayStateAsync(eventId);
         statusLabel.Text = "已連線，正在監看參與者";
+    }
+
+    private async Task LoadJoinInfoAsync(Guid eventId)
+    {
+        using var request = CreateHostRequest(
+            HttpMethod.Get,
+            $"api/v1/events/{eventId:D}/join-info");
+        using var response = await httpClient.SendAsync(request);
+        await EnsureSuccessAsync(response);
+        var joinInfo = await response.Content.ReadFromJsonAsync<EventJoinInfoView>()
+            ?? throw new InvalidOperationException("Server 未回傳活動加入資訊。");
+        ApplyJoinInfo(joinInfo);
+    }
+
+    private void ApplyJoinInfo(EventJoinInfoView joinInfo)
+    {
+        joinEventNameLabel.Text = $"活動：{joinInfo.EventName}";
+        joinCodeValueLabel.Text = joinInfo.JoinCode;
+        joinUrlTextBox.Text = joinInfo.JoinUrl;
+        joinUrlWarningLabel.Text = joinInfo.IsLoopback
+            ? "警告：目前使用 localhost，其他手機無法連線。"
+            : "此網址應由連接同一 Wi-Fi 的手機開啟。";
+        joinUrlWarningLabel.ForeColor = joinInfo.IsLoopback ? Color.Firebrick : Color.DarkGreen;
+
+        var pngBytes = qrCodeGenerator.Generate(joinInfo.JoinUrl);
+        using var stream = new MemoryStream(pngBytes);
+        using var sourceImage = Image.FromStream(stream);
+        var replacement = new Bitmap(sourceImage);
+        var previous = joinQrCodePictureBox.Image;
+        joinQrCodePictureBox.Image = replacement;
+        previous?.Dispose();
+    }
+
+    private void copyJoinUrlButton_Click(object? sender, EventArgs e)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(joinUrlTextBox.Text))
+            {
+                throw new InvalidOperationException("目前沒有可複製的加入網址。");
+            }
+
+            Clipboard.SetText(joinUrlTextBox.Text);
+            statusLabel.Text = "加入網址已複製。";
+        }
+        catch (Exception exception) when (exception is ExternalException or InvalidOperationException)
+        {
+            statusLabel.Text = $"複製加入網址失敗：{exception.Message}";
+        }
     }
 
     private async void createQuestionButton_Click(object? sender, EventArgs e)
@@ -142,6 +201,7 @@ public partial class HostDashboardForm : Form
             var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
                 ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
             ApplyQuizState(state);
+            displayModeValueLabel.Text = "目前畫面：Question";
         });
     }
 
@@ -167,7 +227,66 @@ public partial class HostDashboardForm : Form
             using var response = await httpClient.SendAsync(request);
             await EnsureSuccessAsync(response);
             await LoadQuizStateAsync(eventId);
+            displayModeValueLabel.Text = "目前畫面：Result";
         });
+    }
+
+    private async void showWaitingButton_Click(object? sender, EventArgs e)
+    {
+        await SetDisplayModeAsync(DisplayMode.Waiting);
+    }
+
+    private async void showQuestionButton_Click(object? sender, EventArgs e)
+    {
+        await SetDisplayModeAsync(DisplayMode.Question);
+    }
+
+    private async void showResultButton_Click(object? sender, EventArgs e)
+    {
+        await SetDisplayModeAsync(DisplayMode.Result);
+    }
+
+    private async void showLeaderboardButton_Click(object? sender, EventArgs e)
+    {
+        await SetDisplayModeAsync(DisplayMode.Leaderboard);
+    }
+
+    private async Task SetDisplayModeAsync(DisplayMode mode)
+    {
+        await RunUiOperationAsync(async () =>
+        {
+            var eventId = GetEventId();
+            using var request = CreateHostRequest(
+                HttpMethod.Put,
+                $"api/v1/events/{eventId:D}/display/mode");
+            request.Content = JsonContent.Create(new { mode });
+            using var response = await httpClient.SendAsync(request);
+            await EnsureSuccessAsync(response);
+            var state = await response.Content.ReadFromJsonAsync<DisplayStateView>()
+                ?? throw new InvalidOperationException("Server 未回傳 Display 狀態。");
+            displayModeValueLabel.Text = $"目前畫面：{state.Mode}";
+        });
+    }
+
+    private async Task LoadDisplayStateAsync(Guid eventId)
+    {
+        using var response = await httpClient.GetAsync(
+            new Uri(GetServerUri(), $"api/v1/events/{eventId:D}/display"));
+        await EnsureSuccessAsync(response);
+        var state = await response.Content.ReadFromJsonAsync<DisplayStateView>()
+            ?? throw new InvalidOperationException("Server 未回傳 Display 狀態。");
+        displayModeValueLabel.Text = $"目前畫面：{state.Mode}";
+    }
+
+    private void UpdateDisplayModeThreadSafe(DisplayMode mode)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(() => UpdateDisplayModeThreadSafe(mode));
+            return;
+        }
+
+        displayModeValueLabel.Text = $"目前畫面：{mode}";
     }
 
     private async Task ExecuteSessionCommandAsync(string command)
@@ -495,6 +614,7 @@ public partial class HostDashboardForm : Form
         quizDeadlineRefreshCancellation?.Cancel();
         quizDeadlineRefreshCancellation?.Dispose();
         await DisconnectHubAsync();
+        joinQrCodePictureBox.Image?.Dispose();
         httpClient.Dispose();
     }
 
@@ -511,9 +631,20 @@ public partial class HostDashboardForm : Form
 
     private sealed record CreateEventRequest(string Name, DateTime EventDateUtc);
 
-    private sealed record CreateEventResult(EventView Event, string HostToken);
+    private sealed record CreateEventResult(
+        EventView Event,
+        string HostToken,
+        EventJoinInfoView JoinInfo);
 
     private sealed record EventView(Guid Id, string Name);
+
+    private sealed record EventJoinInfoView(
+        Guid EventId,
+        string EventName,
+        string JoinCode,
+        string JoinUrl,
+        bool IsJoinOpen,
+        bool IsLoopback);
 
     private sealed record ParticipantView(
         Guid Id,
@@ -558,6 +689,10 @@ public partial class HostDashboardForm : Form
 
     private sealed record LeaderboardUpdatedNotification(Guid SessionId);
 
+    private sealed record DisplayModeChangedNotification(Guid EventId, DisplayMode Mode);
+
+    private sealed record DisplayStateView(DisplayMode Mode);
+
     private sealed record QuizStatisticsView(
         int CorrectCount,
         int IncorrectCount,
@@ -579,5 +714,13 @@ public partial class HostDashboardForm : Form
         Open,
         Closed,
         Revealed
+    }
+
+    private enum DisplayMode
+    {
+        Waiting,
+        Question,
+        Result,
+        Leaderboard
     }
 }

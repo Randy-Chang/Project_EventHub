@@ -1,4 +1,5 @@
 using EventHub.Application.Participants;
+using EventHub.Application.Events;
 using EventHub.Domain.Common;
 using Microsoft.AspNetCore.SignalR;
 
@@ -6,6 +7,7 @@ namespace EventHub.Server.Hubs;
 
 public sealed class PresenceHub(
     ParticipantPresenceService presenceService,
+    EventService eventService,
     ILogger<PresenceHub> logger) : Hub<IEventClient>
 {
     private const string ParticipantContextKey = "Participant";
@@ -13,6 +15,8 @@ public sealed class PresenceHub(
     public static string HostGroup(Guid eventId) => $"event:{eventId}:hosts";
 
     public static string GuestGroup(Guid eventId) => $"event:{eventId}:guests";
+
+    public static string DisplayGroup(Guid eventId) => $"event:{eventId}:displays";
 
     public override async Task OnConnectedAsync()
     {
@@ -51,6 +55,12 @@ public sealed class PresenceHub(
                 await Groups.AddToGroupAsync(Context.ConnectionId, GuestGroup(eventId));
                 await Clients.Group(HostGroup(eventId)).ParticipantPresenceChanged(
                     result.Participant);
+            }
+            else if (string.Equals(role, "display", StringComparison.OrdinalIgnoreCase))
+            {
+                _ = await eventService.GetAsync(eventId, Context.ConnectionAborted);
+                await Groups.AddToGroupAsync(Context.ConnectionId, DisplayGroup(eventId));
+                logger.LogInformation("Display connected for event {EventId}.", eventId);
             }
             else
             {

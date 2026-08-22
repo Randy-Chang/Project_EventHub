@@ -1,4 +1,5 @@
 using EventHub.Application.Abstractions;
+using EventHub.Application.Display;
 using EventHub.Application.Events;
 using EventHub.Application.Participants;
 using EventHub.Application.Quizzes;
@@ -405,6 +406,7 @@ public sealed class QuizServiceTests
         var quizRepository = new FakeQuizRepository();
         var eventItem = DomainEvent.Create(
             "Test Event",
+            "QUJZ23",
             Now.AddDays(1),
             credentials.HashToken("host-token"),
             Now);
@@ -452,7 +454,12 @@ public sealed class QuizServiceTests
             quizRepository.Session = session;
         }
 
-        var eventService = new EventService(eventRepository, credentials, clock);
+        var eventService = new EventService(
+            eventRepository,
+            credentials,
+            new FixedJoinCodeGenerator(),
+            new EventJoinUrlBuilder("http://192.168.1.100:5000"),
+            clock);
         var participantService = new ParticipantService(
             participantRepository,
             presenceStore,
@@ -465,6 +472,13 @@ public sealed class QuizServiceTests
             participantService,
             new QuizScoreCalculator(),
             clock);
+        var displayService = new DisplayService(
+            eventRepository,
+            participantRepository,
+            quizRepository,
+            eventService,
+            scoringService,
+            clock);
         var service = new QuizService(
             quizRepository,
             participantRepository,
@@ -472,6 +486,7 @@ public sealed class QuizServiceTests
             eventService,
             participantService,
             scoringService,
+            displayService,
             clock);
 
         return new Fixture(
@@ -535,6 +550,11 @@ public sealed class QuizServiceTests
         public bool Matches(string token, string expectedHash) => HashToken(token) == expectedHash;
     }
 
+    private sealed class FixedJoinCodeGenerator : IEventJoinCodeGenerator
+    {
+        public string Generate() => "QUJZ23";
+    }
+
     private sealed class FakeEventRepository : IEventRepository
     {
         public DomainEvent? Item { get; set; }
@@ -542,11 +562,24 @@ public sealed class QuizServiceTests
         public Task<DomainEvent?> GetByIdAsync(Guid eventId, CancellationToken cancellationToken) =>
             Task.FromResult(Item?.Id == eventId ? Item : null);
 
-        public Task AddAsync(DomainEvent eventItem, CancellationToken cancellationToken)
+        public Task<DomainEvent?> GetByJoinCodeAsync(
+            string normalizedJoinCode,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Item?.JoinCode == normalizedJoinCode ? Item : null);
+
+        public Task<bool> JoinCodeExistsAsync(
+            string normalizedJoinCode,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Item?.JoinCode == normalizedJoinCode);
+
+        public Task<bool> TryAddAsync(DomainEvent eventItem, CancellationToken cancellationToken)
         {
             Item = eventItem;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
+
+        public Task UpdateAsync(DomainEvent eventItem, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeParticipantRepository : IParticipantRepository
@@ -628,6 +661,9 @@ public sealed class QuizServiceTests
 
         public Task<int> GetNextQuestionOrderAsync(Guid quizId, CancellationToken cancellationToken) =>
             Task.FromResult(Questions.Count + 1);
+
+        public Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken) =>
+            Task.FromResult(Questions.Count(question => question.QuizId == quizId));
 
         public Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken)
         {

@@ -26,6 +26,11 @@ namespace EventHub.Infrastructure.Persistence.Migrations
                     b.Property<long>("CreatedAtUtc")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("DisplayMode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("EventDateUtc")
                         .HasColumnType("INTEGER");
 
@@ -36,6 +41,12 @@ namespace EventHub.Infrastructure.Persistence.Migrations
 
                     b.Property<bool>("IsJoinOpen")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("JoinCode")
+                        .IsRequired()
+                        .HasMaxLength(6)
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -54,6 +65,9 @@ namespace EventHub.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("EventDateUtc");
+
+                    b.HasIndex("JoinCode")
+                        .IsUnique();
 
                     b.ToTable("Events", (string)null);
                 });

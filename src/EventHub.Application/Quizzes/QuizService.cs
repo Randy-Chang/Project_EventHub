@@ -1,4 +1,5 @@
 using EventHub.Application.Abstractions;
+using EventHub.Application.Display;
 using EventHub.Application.Events;
 using EventHub.Application.Participants;
 using EventHub.Domain.Quizzes;
@@ -12,6 +13,7 @@ public sealed class QuizService(
     EventService eventService,
     ParticipantService participantService,
     QuizScoringService scoringService,
+    DisplayService displayService,
     TimeProvider timeProvider)
 {
     public async Task<QuizQuestionSummary> CreateQuestionAsync(
@@ -68,6 +70,7 @@ public sealed class QuizService(
         var session = QuizQuestionSession.Create(command.EventId, quiz.Id, question.Id);
         session.Open(timeProvider.GetUtcNow(), question.AnswerDuration);
         await quizRepository.AddSessionAsync(session, cancellationToken);
+        await displayService.SetQuestionModeAsync(command.EventId, cancellationToken);
         return await BuildStateAsync(session, question, null, cancellationToken);
     }
 
@@ -138,10 +141,14 @@ public sealed class QuizService(
         return await BuildStateAsync(session, question, null, cancellationToken);
     }
 
-    public Task<RevealQuizQuestionResult> RevealAnswerAsync(
+    public async Task<RevealQuizQuestionResult> RevealAnswerAsync(
         QuizHostCommand command,
-        CancellationToken cancellationToken) =>
-        scoringService.RevealAnswerAsync(command, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        var result = await scoringService.RevealAnswerAsync(command, cancellationToken);
+        await displayService.SetResultModeAsync(command.EventId, cancellationToken);
+        return result;
+    }
 
     public async Task<CurrentQuizState> GetCurrentStateAsync(
         QuizStateQuery query,

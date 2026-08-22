@@ -107,12 +107,14 @@ public static class QuizEndpoints
             }
             else
             {
-                await hubContext.Clients.Group(PresenceHub.HostGroup(eventId)).QuestionProgressUpdated(
-                    new QuestionProgressNotification(
-                        sessionId,
-                        result.Progress.AnsweredCount,
-                        result.Progress.ParticipantCount,
-                        result.Progress.OnlineCount));
+                var notification = new QuestionProgressNotification(
+                    sessionId,
+                    result.Progress.AnsweredCount,
+                    result.Progress.ParticipantCount,
+                    result.Progress.OnlineCount);
+                await Task.WhenAll(
+                    hubContext.Clients.Group(PresenceHub.HostGroup(eventId)).QuestionProgressUpdated(notification),
+                    hubContext.Clients.Group(PresenceHub.DisplayGroup(eventId)).QuestionProgressUpdated(notification));
             }
 
             return Results.Ok(result);
@@ -219,7 +221,8 @@ public static class QuizEndpoints
     {
         await Task.WhenAll(
             notification(hubContext.Clients.Group(PresenceHub.HostGroup(eventId))),
-            notification(hubContext.Clients.Group(PresenceHub.GuestGroup(eventId))));
+            notification(hubContext.Clients.Group(PresenceHub.GuestGroup(eventId))),
+            notification(hubContext.Clients.Group(PresenceHub.DisplayGroup(eventId))));
     }
 
     public sealed record CreateQuizQuestionRequest(

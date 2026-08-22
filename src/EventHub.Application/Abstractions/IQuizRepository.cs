@@ -10,6 +10,8 @@ public interface IQuizRepository
 
     Task<int> GetNextQuestionOrderAsync(Guid quizId, CancellationToken cancellationToken);
 
+    Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken);
+
     Task AddQuestionAsync(QuizQuestion question, CancellationToken cancellationToken);
 
     Task<QuizQuestion?> GetQuestionAsync(Guid questionId, CancellationToken cancellationToken);

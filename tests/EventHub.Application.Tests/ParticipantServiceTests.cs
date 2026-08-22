@@ -58,11 +58,17 @@ public sealed class ParticipantServiceTests
         var presenceStore = new FakePresenceStore();
         var eventItem = DomainEvent.Create(
             "Test Event",
+            "TEST23",
             Now.AddDays(1),
             credentialService.HashToken("host-token"),
             Now);
         eventRepository.Item = eventItem;
-        var eventService = new EventService(eventRepository, credentialService, new FixedTimeProvider(Now));
+        var eventService = new EventService(
+            eventRepository,
+            credentialService,
+            new FixedJoinCodeGenerator(),
+            new EventJoinUrlBuilder("http://192.168.1.100:5000"),
+            new FixedTimeProvider(Now));
         var service = new ParticipantService(
             participantRepository,
             presenceStore,
@@ -93,6 +99,11 @@ public sealed class ParticipantServiceTests
         public bool Matches(string token, string expectedHash) => HashToken(token) == expectedHash;
     }
 
+    private sealed class FixedJoinCodeGenerator : IEventJoinCodeGenerator
+    {
+        public string Generate() => "TEST23";
+    }
+
     private sealed class FakeEventRepository : IEventRepository
     {
         public DomainEvent? Item { get; set; }
@@ -102,11 +113,24 @@ public sealed class ParticipantServiceTests
             return Task.FromResult(Item?.Id == eventId ? Item : null);
         }
 
-        public Task AddAsync(DomainEvent eventItem, CancellationToken cancellationToken)
+        public Task<DomainEvent?> GetByJoinCodeAsync(
+            string normalizedJoinCode,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Item?.JoinCode == normalizedJoinCode ? Item : null);
+
+        public Task<bool> JoinCodeExistsAsync(
+            string normalizedJoinCode,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(Item?.JoinCode == normalizedJoinCode);
+
+        public Task<bool> TryAddAsync(DomainEvent eventItem, CancellationToken cancellationToken)
         {
             Item = eventItem;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
+
+        public Task UpdateAsync(DomainEvent eventItem, CancellationToken cancellationToken) =>
+            Task.CompletedTask;
     }
 
     private sealed class FakeParticipantRepository : IParticipantRepository
