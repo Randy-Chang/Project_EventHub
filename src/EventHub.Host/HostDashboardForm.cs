@@ -1,643 +1,422 @@
-using System.Net.Http.Json;
-using System.Runtime.InteropServices;
+using EventHub.Host.Views;
 using EventHub.Presentation;
-using Microsoft.AspNetCore.SignalR.Client;
 
 namespace EventHub.Host;
 
+internal enum HostView
+{
+    Dashboard,
+    Event,
+    QuestionBank,
+    Quiz,
+    Results,
+    Display
+}
+
 public partial class HostDashboardForm : Form
 {
-    private readonly HttpClient httpClient = new();
+    private readonly EventHubHostClient client = new();
     private readonly QrCodePngGenerator qrCodeGenerator = new();
-    private HubConnection? hubConnection;
+    private readonly Dictionary<Guid, ParticipantView> participants = [];
+    private IReadOnlyList<QuestionBankSummaryView> questionBanks = [];
+    private IReadOnlyList<QuestionBankQuestionView> questions = [];
+    private QuizStateView quizState = CreateWaitingState();
     private Guid? selectedQuestionId;
-    private Guid? currentSessionId;
-    private CancellationTokenSource? quizDeadlineRefreshCancellation;
-    private IReadOnlyList<QuestionBankQuestionView> questionBankQuestions = [];
-    private QuizState currentQuizState = QuizState.Waiting;
+    private string currentEventName = "尚未選擇";
+    private string currentQuizTitle = "尚未選擇";
+    private HostConnectionState connectionState = HostConnectionState.Disconnected;
+    private DisplayMode displayMode = DisplayMode.Waiting;
+    private CancellationTokenSource? deadlineRecoveryCancellation;
 
     public HostDashboardForm()
     {
         InitializeComponent();
+        WireViewEvents();
+        WireClientEvents();
+        ShowView(HostView.Dashboard);
+        RenderContext();
     }
 
-    private async void createEventButton_Click(object? sender, EventArgs e)
+    private void WireViewEvents()
     {
-        await RunUiOperationAsync(async () =>
-        {
-            var serverUri = GetServerUri();
-            var response = await httpClient.PostAsJsonAsync(
-                new Uri(serverUri, "api/v1/events"),
-                new CreateEventRequest(eventNameTextBox.Text, eventDatePicker.Value.ToUniversalTime()));
-            await EnsureSuccessAsync(response);
+        eventManagementView.CreateEventRequested += createEventRequested;
+        eventManagementView.ConnectRequested += connectRequested;
+        questionBankView.ImportRequested += importQuestionBankRequested;
+        questionBankView.ExportTemplateRequested += exportTemplateRequested;
+        questionBankView.RefreshRequested += refreshQuestionBanksRequested;
+        questionBankView.SelectedBankChanged += selectedQuestionBankChanged;
+        questionBankView.SelectedQuestionChanged += selectedQuestionChanged;
+        quizControlView.PrimaryActionRequested += primaryQuizActionRequested;
+        quizControlView.ManualQuestionCreateRequested += createManualQuestionRequested;
+        displayControlView.DisplayModeRequested += displayModeRequested;
+    }
 
-            var result = await response.Content.ReadFromJsonAsync<CreateEventResult>()
-                ?? throw new InvalidOperationException("Server 未回傳活動資料。");
-            eventIdTextBox.Text = result.Event.Id.ToString();
-            hostTokenTextBox.Text = result.HostToken;
-            ApplyJoinInfo(result.JoinInfo);
-            statusLabel.Text = $"已建立：{result.Event.Name}";
-            await ConnectToEventAsync();
+    private void WireClientEvents()
+    {
+        client.ParticipantChanged += participant => RunOnUi(() => HandleParticipantChanged(participant));
+        client.QuizStateRefreshRequested += () => RunOnUiAsync(RefreshQuizStateAsync);
+        client.QuestionProgressChanged += progress => RunOnUi(() => HandleQuestionProgress(progress));
+        client.LeaderboardRefreshRequested += () => RunOnUiAsync(RefreshResultsAsync);
+        client.DisplayModeChanged += mode => RunOnUi(() =>
+        {
+            displayMode = mode;
+            displayControlView.Render(mode);
+            RenderContext();
         });
+        client.ConnectionStateChanged += state => RunOnUi(() =>
+        {
+            connectionState = state;
+            RenderContext();
+        });
+        client.RecoveryRequested += () => RunOnUiAsync(RecoverCurrentContextAsync);
     }
 
-    private async void connectButton_Click(object? sender, EventArgs e)
+    private async void createEventRequested(object? sender, EventArgs e)
     {
-        await RunUiOperationAsync(ConnectToEventAsync);
-    }
-
-    private async Task ConnectToEventAsync()
-    {
-        if (!Guid.TryParse(eventIdTextBox.Text, out var eventId))
-        {
-            throw new InvalidOperationException("活動 ID 格式不正確。");
-        }
-
-        if (string.IsNullOrWhiteSpace(hostTokenTextBox.Text))
-        {
-            throw new InvalidOperationException("Host Token 不可為空白。");
-        }
-
-        await DisconnectHubAsync();
-        var serverUri = GetServerUri();
-        var query = $"role=host&eventId={eventId:D}&token={Uri.EscapeDataString(hostTokenTextBox.Text)}";
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(new Uri(serverUri, $"hubs/event?{query}"))
-            .WithAutomaticReconnect()
-            .Build();
-
-        hubConnection.On<ParticipantView>("ParticipantJoined", UpsertParticipantThreadSafe);
-        hubConnection.On<ParticipantView>("ParticipantPresenceChanged", UpsertParticipantThreadSafe);
-        hubConnection.On<QuestionStartedNotification>("QuestionStarted", _ => RefreshQuizStateThreadSafe(eventId));
-        hubConnection.On<QuestionProgressNotification>("QuestionProgressUpdated", UpdateQuizProgressThreadSafe);
-        hubConnection.On<QuestionClosedNotification>("QuestionClosed", _ => RefreshQuizStateThreadSafe(eventId));
-        hubConnection.On<AnswerRevealedNotification>("AnswerRevealed", _ => RefreshQuizStateThreadSafe(eventId));
-        hubConnection.On<LeaderboardUpdatedNotification>("LeaderboardUpdated", _ => RefreshQuizResultsThreadSafe(eventId));
-        hubConnection.On<DisplayModeChangedNotification>("DisplayModeChanged", notification =>
-            UpdateDisplayModeThreadSafe(notification.Mode));
-        hubConnection.Reconnecting += _ => UpdateStatusAsync("SignalR 重新連線中…");
-        hubConnection.Reconnected += _ =>
-        {
-            UpdateStatusThreadSafe("SignalR 已重新連線");
-            BeginInvoke(async () =>
+        await RunViewOperationAsync(
+            eventManagementView.SetStatus,
+            eventManagementView.SetBusy,
+            async () =>
             {
-                await LoadParticipantsAsync(eventId);
-                await LoadQuizStateAsync(eventId);
-                await LoadJoinInfoAsync(eventId);
-                await LoadDisplayStateAsync(eventId);
+                var result = await client.CreateEventAsync(
+                    eventManagementView.ServerUrl,
+                    eventManagementView.EventName,
+                    eventManagementView.EventDateUtc);
+                eventManagementView.SetEventCredential(result.Event.Id, result.HostToken);
+                currentEventName = result.Event.Name;
+                RenderJoinInfo(result.JoinInfo);
+                await ConnectAndRecoverAsync();
+                eventManagementView.SetStatus($"已建立並連線：{result.Event.Name}");
             });
-            return Task.CompletedTask;
-        };
-        hubConnection.Closed += _ => UpdateStatusAsync("SignalR 已離線");
-
-        await hubConnection.StartAsync();
-        await LoadParticipantsAsync(eventId);
-        await LoadQuizStateAsync(eventId);
-        await LoadJoinInfoAsync(eventId);
-        await LoadDisplayStateAsync(eventId);
-        await LoadQuestionBanksAsync(eventId);
-        statusLabel.Text = "已連線，正在監看參與者";
     }
 
-    private async Task LoadJoinInfoAsync(Guid eventId)
+    private async void connectRequested(object? sender, EventArgs e)
     {
-        using var request = CreateHostRequest(
-            HttpMethod.Get,
-            $"api/v1/events/{eventId:D}/join-info");
-        using var response = await httpClient.SendAsync(request);
-        await EnsureSuccessAsync(response);
-        var joinInfo = await response.Content.ReadFromJsonAsync<EventJoinInfoView>()
-            ?? throw new InvalidOperationException("Server 未回傳活動加入資訊。");
-        ApplyJoinInfo(joinInfo);
-    }
-
-    private void ApplyJoinInfo(EventJoinInfoView joinInfo)
-    {
-        joinEventNameLabel.Text = $"活動：{joinInfo.EventName}";
-        joinCodeValueLabel.Text = joinInfo.JoinCode;
-        joinUrlTextBox.Text = joinInfo.JoinUrl;
-        joinUrlWarningLabel.Text = joinInfo.IsLoopback
-            ? "警告：目前使用 localhost，其他手機無法連線。"
-            : "此網址應由連接同一 Wi-Fi 的手機開啟。";
-        joinUrlWarningLabel.ForeColor = joinInfo.IsLoopback ? Color.Firebrick : Color.DarkGreen;
-
-        var pngBytes = qrCodeGenerator.Generate(joinInfo.JoinUrl);
-        using var stream = new MemoryStream(pngBytes);
-        using var sourceImage = Image.FromStream(stream);
-        var replacement = new Bitmap(sourceImage);
-        var previous = joinQrCodePictureBox.Image;
-        joinQrCodePictureBox.Image = replacement;
-        previous?.Dispose();
-    }
-
-    private void copyJoinUrlButton_Click(object? sender, EventArgs e)
-    {
-        try
-        {
-            if (string.IsNullOrWhiteSpace(joinUrlTextBox.Text))
+        await RunViewOperationAsync(
+            eventManagementView.SetStatus,
+            eventManagementView.SetBusy,
+            async () =>
             {
-                throw new InvalidOperationException("目前沒有可複製的加入網址。");
-            }
+                await ConnectAndRecoverAsync();
+                eventManagementView.SetStatus("已連線，正在監看活動。");
+            });
+    }
 
-            Clipboard.SetText(joinUrlTextBox.Text);
-            statusLabel.Text = "加入網址已複製。";
+    private async Task ConnectAndRecoverAsync()
+    {
+        await client.ConnectAsync(
+            eventManagementView.ServerUrl,
+            eventManagementView.EventId,
+            eventManagementView.HostToken);
+        await RecoverCurrentContextAsync();
+    }
+
+    private async Task RecoverCurrentContextAsync()
+    {
+        var joinInfo = await client.GetJoinInfoAsync();
+        currentEventName = joinInfo.EventName;
+        RenderJoinInfo(joinInfo);
+        var participantItems = await client.GetParticipantsAsync();
+        participants.Clear();
+        foreach (var participant in participantItems)
+        {
+            participants[participant.Id] = participant;
         }
-        catch (Exception exception) when (exception is ExternalException or InvalidOperationException)
+
+        eventManagementView.RenderParticipants(participantItems);
+        quizState = await client.GetQuizStateAsync();
+        selectedQuestionId = quizState.QuestionId ?? selectedQuestionId;
+        var displayState = await client.GetDisplayStateAsync();
+        displayMode = displayState.Mode;
+        displayControlView.Render(displayMode);
+        await LoadQuestionBanksAsync(selectedQuestionId: selectedQuestionId);
+        RenderQuizState();
+        if (quizState.State == QuizState.Revealed)
         {
-            statusLabel.Text = $"複製加入網址失敗：{exception.Message}";
+            await RefreshResultsAsync();
+        }
+
+        RenderContext();
+    }
+
+    private void RenderJoinInfo(EventJoinInfoView joinInfo)
+    {
+        var png = qrCodeGenerator.Generate(joinInfo.JoinUrl);
+        using var stream = new MemoryStream(png);
+        using var source = Image.FromStream(stream);
+        eventManagementView.RenderJoinInfo(joinInfo, new Bitmap(source));
+    }
+
+    private async void importQuestionBankRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            questionBankView.SetStatus,
+            questionBankView.SetBusy,
+            async () =>
+            {
+                using var dialog = new OpenFileDialog
+                {
+                    Filter = "CSV 題庫 (*.csv)|*.csv",
+                    Title = "選擇 EventHub 題庫 CSV",
+                    CheckFileExists = true
+                };
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    questionBankView.SetStatus("已取消題庫匯入。");
+                    return;
+                }
+
+                var preview = await client.PreviewQuestionBankAsync(dialog.FileName);
+                using var previewForm = new QuestionBankImportPreviewForm(preview);
+                if (previewForm.ShowDialog(this) != DialogResult.OK)
+                {
+                    questionBankView.SetStatus(
+                        preview.IsValid ? "已取消題庫匯入。" : "CSV 驗證失敗，未匯入任何資料。",
+                        !preview.IsValid);
+                    return;
+                }
+
+                var result = await client.ImportQuestionBankAsync(dialog.FileName);
+                await LoadQuestionBanksAsync(result.QuizId);
+                questionBankView.SetStatus($"已匯入：{result.QuizTitle}（{result.QuestionCount} 題）");
+            });
+    }
+
+    private async void exportTemplateRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            questionBankView.SetStatus,
+            questionBankView.SetBusy,
+            async () =>
+            {
+                using var dialog = new SaveFileDialog
+                {
+                    Filter = "CSV 檔案 (*.csv)|*.csv",
+                    FileName = "EventHub_QuizTemplate.csv",
+                    Title = "儲存 EventHub 題庫範本"
+                };
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+
+                await File.WriteAllBytesAsync(
+                    dialog.FileName,
+                    await client.DownloadQuestionBankTemplateAsync());
+                questionBankView.SetStatus($"已匯出範本：{dialog.FileName}");
+            });
+    }
+
+    private async void refreshQuestionBanksRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            questionBankView.SetStatus,
+            questionBankView.SetBusy,
+            async () =>
+            {
+                await LoadQuestionBanksAsync(questionBankView.SelectedBank?.Id, selectedQuestionId);
+                questionBankView.SetStatus("題庫已重新整理。");
+            });
+    }
+
+    private async void selectedQuestionBankChanged(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            questionBankView.SetStatus,
+            questionBankView.SetBusy,
+            async () =>
+            {
+                await LoadSelectedBankQuestionsAsync(selectedQuestionId);
+                questionBankView.SetStatus("已切換題庫。");
+            });
+    }
+
+    private void selectedQuestionChanged(object? sender, EventArgs e)
+    {
+        var selected = questionBankView.SelectedQuestion;
+        if (selected is null)
+        {
+            return;
+        }
+
+        selectedQuestionId = selected.Id;
+        currentQuizTitle = questionBankView.SelectedBank?.Title ?? currentQuizTitle;
+        RenderQuizState();
+        RenderContext();
+    }
+
+    private async Task LoadQuestionBanksAsync(Guid? selectedQuizId = null, Guid? selectedQuestionId = null)
+    {
+        questionBanks = await client.GetQuestionBanksAsync();
+        var targetQuizId = selectedQuizId ?? questionBankView.SelectedBank?.Id;
+        questionBankView.RenderBanks(questionBanks, targetQuizId);
+        await LoadSelectedBankQuestionsAsync(selectedQuestionId);
+    }
+
+    private async Task LoadSelectedBankQuestionsAsync(Guid? targetQuestionId)
+    {
+        var selectedBank = questionBankView.SelectedBank;
+        if (selectedBank is null)
+        {
+            questions = [];
+            currentQuizTitle = "尚未選擇";
+            RenderContext();
+            return;
+        }
+
+        questions = await client.GetQuestionsAsync(selectedBank.Id);
+        currentQuizTitle = selectedBank.Title;
+        questionBankView.RenderQuestions(questions, targetQuestionId ?? selectedQuestionId);
+        selectedQuestionId = questionBankView.SelectedQuestion?.Id ?? selectedQuestionId;
+        RenderQuizState();
+        RenderContext();
+    }
+
+    private async void primaryQuizActionRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            quizControlView.SetStatus,
+            quizControlView.SetBusy,
+            async () =>
+            {
+                switch (quizControlView.CurrentAction)
+                {
+                    case QuizPrimaryAction.Start:
+                        if (!selectedQuestionId.HasValue)
+                        {
+                            throw new InvalidOperationException("請先到題庫選擇題目。");
+                        }
+
+                        quizState = await client.StartQuestionAsync(selectedQuestionId.Value);
+                        ShowView(HostView.Quiz);
+                        break;
+                    case QuizPrimaryAction.Close:
+                        quizState = await client.CloseQuestionAsync(GetCurrentSessionId());
+                        break;
+                    case QuizPrimaryAction.Reveal:
+                        await client.RevealAnswerAsync(GetCurrentSessionId());
+                        quizState = await client.GetQuizStateAsync();
+                        await RefreshResultsAsync();
+                        break;
+                    case QuizPrimaryAction.Next:
+                        if (!questionBankView.MoveSelection(1))
+                        {
+                            throw new InvalidOperationException("題庫中沒有下一題。");
+                        }
+
+                        break;
+                    default:
+                        throw new InvalidOperationException("目前沒有可執行的 Quiz 操作。");
+                }
+
+                await RefreshQuestionStatusesAsync();
+                RenderQuizState();
+                quizControlView.SetStatus("操作完成。");
+            });
+    }
+
+    private async void createManualQuestionRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            quizControlView.SetStatus,
+            quizControlView.SetBusy,
+            async () =>
+            {
+                var created = await client.CreateQuestionAsync(quizControlView.BuildManualQuestionRequest());
+                await SelectQuestionAcrossBanksAsync(created.Id);
+                quizControlView.SetStatus($"已建立手動題目：{created.Text}");
+            });
+    }
+
+    private async Task SelectQuestionAcrossBanksAsync(Guid questionId)
+    {
+        questionBanks = await client.GetQuestionBanksAsync();
+        foreach (var bank in questionBanks)
+        {
+            var bankQuestions = await client.GetQuestionsAsync(bank.Id);
+            if (bankQuestions.Any(question => question.Id == questionId))
+            {
+                questionBankView.RenderBanks(questionBanks, bank.Id);
+                questions = bankQuestions;
+                questionBankView.RenderQuestions(bankQuestions, questionId);
+                selectedQuestionId = questionId;
+                currentQuizTitle = bank.Title;
+                RenderQuizState();
+                RenderContext();
+                return;
+            }
+        }
+
+        throw new InvalidOperationException("題目已建立，但重新載入題庫時找不到該題目。");
+    }
+
+    private async Task RefreshQuizStateAsync()
+    {
+        quizState = await client.GetQuizStateAsync();
+        selectedQuestionId = quizState.QuestionId ?? selectedQuestionId;
+        await RefreshQuestionStatusesAsync();
+        RenderQuizState();
+        if (quizState.State == QuizState.Revealed)
+        {
+            await RefreshResultsAsync();
         }
     }
 
-    private async void createQuestionButton_Click(object? sender, EventArgs e)
+    private async Task RefreshQuestionStatusesAsync()
     {
-        await RunUiOperationAsync(async () =>
+        if (questionBankView.SelectedBank is not null)
         {
-            var eventId = GetEventId();
-            var options = new[]
-            {
-                optionATextBox.Text,
-                optionBTextBox.Text,
-                optionCTextBox.Text,
-                optionDTextBox.Text
-            }.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
-
-            if (correctOptionComboBox.SelectedIndex < 0 || correctOptionComboBox.SelectedIndex >= options.Length)
-            {
-                throw new InvalidOperationException("請選擇存在的正確答案選項。");
-            }
-
-            using var request = CreateHostRequest(
-                HttpMethod.Post,
-                $"api/v1/events/{eventId:D}/quiz/questions");
-            request.Content = JsonContent.Create(new CreateQuestionRequest(
-                questionTextBox.Text,
-                options,
-                correctOptionComboBox.SelectedIndex,
-                (int)answerDurationNumeric.Value));
-            using var response = await httpClient.SendAsync(request);
-            await EnsureSuccessAsync(response);
-            var question = await response.Content.ReadFromJsonAsync<QuestionView>()
-                ?? throw new InvalidOperationException("Server 未回傳題目資料。");
-            selectedQuestionId = question.Id;
-            currentQuestionLabel.Text = $"目前題目：{question.Text}";
-            quizStateLabel.Text = "狀態：Waiting（題目已建立）";
-            UpdateQuizButtons(QuizState.Waiting);
-        });
+            await LoadSelectedBankQuestionsAsync(selectedQuestionId);
+        }
     }
 
-    private async void importCsvButton_Click(object? sender, EventArgs e)
+    private void RenderQuizState()
     {
-        await RunUiOperationAsync(async () =>
+        var selected = questionBankView.SelectedQuestion;
+        var position = selected is null || questions.Count == 0
+            ? "— / —"
+            : $"{GetQuestionIndex(selected) + 1:00} / {questions.Count:00}";
+        var stateForPresentation = quizState;
+        if (quizState.State == QuizState.Revealed && selected?.Id != quizState.QuestionId)
         {
-            using var dialog = new OpenFileDialog
+            stateForPresentation = quizState with
             {
-                Filter = "CSV 題庫 (*.csv)|*.csv",
-                Title = "選擇 EventHub 題庫 CSV",
-                CheckFileExists = true
+                State = QuizState.Waiting,
+                SessionId = null,
+                QuestionId = null,
+                QuestionText = null,
+                Options = [],
+                StartedAtUtc = null,
+                AnswerDeadlineUtc = null,
+                AnsweredCount = 0,
+                CorrectOptionId = null
             };
-            if (dialog.ShowDialog(this) != DialogResult.OK)
-            {
-                return;
-            }
-
-            var eventId = GetEventId();
-            var preview = await UploadQuestionBankAsync<QuestionBankPreviewView>(
-                eventId,
-                "quiz-import/preview",
-                dialog.FileName);
-            using var previewForm = new QuestionBankImportPreviewForm(preview);
-            if (previewForm.ShowDialog(this) != DialogResult.OK)
-            {
-                statusLabel.Text = preview.IsValid ? "已取消題庫匯入。" : "CSV 驗證失敗，未匯入任何資料。";
-                return;
-            }
-
-            var result = await UploadQuestionBankAsync<QuestionBankImportResultView>(
-                eventId,
-                "quiz-import",
-                dialog.FileName);
-            await LoadQuestionBanksAsync(eventId, result.QuizId);
-            statusLabel.Text = $"已匯入題庫：{result.QuizTitle}（{result.QuestionCount} 題）";
-        });
-    }
-
-    private async void exportTemplateButton_Click(object? sender, EventArgs e)
-    {
-        await RunUiOperationAsync(async () =>
-        {
-            using var dialog = new SaveFileDialog
-            {
-                Filter = "CSV 檔案 (*.csv)|*.csv",
-                FileName = "EventHub_QuizTemplate.csv",
-                Title = "儲存 EventHub 題庫範本"
-            };
-            if (dialog.ShowDialog(this) != DialogResult.OK)
-            {
-                return;
-            }
-
-            var eventId = GetEventId();
-            using var request = CreateHostRequest(HttpMethod.Get, $"api/v1/events/{eventId:D}/quiz-import/template");
-            using var response = await httpClient.SendAsync(request);
-            await EnsureSuccessAsync(response);
-            await using var output = File.Create(dialog.FileName);
-            await response.Content.CopyToAsync(output);
-            statusLabel.Text = $"已匯出 CSV 範本：{dialog.FileName}";
-        });
-    }
-
-    private async void refreshQuestionBanksButton_Click(object? sender, EventArgs e) =>
-        await RunUiOperationAsync(() => LoadQuestionBanksAsync(GetEventId()));
-
-    private async void questionBankComboBox_SelectedIndexChanged(object? sender, EventArgs e)
-    {
-        if (questionBankComboBox.SelectedItem is not QuestionBankSummaryView bank)
-        {
-            return;
         }
 
-        await RunUiOperationAsync(() => LoadQuestionBankQuestionsAsync(GetEventId(), bank.Id));
+        quizControlView.Render(
+            currentQuizTitle,
+            position,
+            selected,
+            stateForPresentation,
+            questionBankView.HasNextQuestion);
+        var canNavigate = quizState.State is QuizState.Waiting or QuizState.Revealed;
+        questionBankView.SetNavigationEnabled(canNavigate);
+        ScheduleDeadlineRecovery(quizState);
+        RenderContext();
     }
 
-    private void questionBankGrid_SelectionChanged(object? sender, EventArgs e)
+    private void ScheduleDeadlineRecovery(QuizStateView state)
     {
-        if (questionBankGrid.CurrentRow?.Tag is not QuestionBankQuestionView question)
-        {
-            return;
-        }
-
-        selectedQuestionId = question.Id;
-        currentQuestionLabel.Text = $"目前選題：第 {question.Order} 題　{question.Text}";
-        var options = question.Options.OrderBy(option => option.Order)
-            .Select(option => $"{(char)('A' + option.Order)}. {option.Text}");
-        questionBankDetailTextBox.Text =
-            $"{question.Text}{Environment.NewLine}" +
-            $"{string.Join("　", options)}{Environment.NewLine}" +
-            $"正確答案：{(char)('A' + question.CorrectOptionIndex)}　秒數：{question.DurationSeconds}　狀態：{question.Status}";
-        UpdateQuizButtons(currentQuizState);
-    }
-
-    private void previousQuestionButton_Click(object? sender, EventArgs e) => MoveQuestionSelection(-1);
-
-    private void nextQuestionButton_Click(object? sender, EventArgs e) => MoveQuestionSelection(1);
-
-    private void MoveQuestionSelection(int offset)
-    {
-        if (currentQuizState is QuizState.Open or QuizState.Closed)
-        {
-            MessageBox.Show(this, "目前題目必須先關閉並公布答案，才可切換下一題。", "EventHub");
-            return;
-        }
-
-        if (questionBankGrid.Rows.Count == 0)
-        {
-            return;
-        }
-
-        var currentIndex = questionBankGrid.CurrentRow?.Index ?? 0;
-        var nextIndex = Math.Clamp(currentIndex + offset, 0, questionBankGrid.Rows.Count - 1);
-        questionBankGrid.CurrentCell = questionBankGrid.Rows[nextIndex].Cells[0];
-    }
-
-    private async Task<T> UploadQuestionBankAsync<T>(Guid eventId, string path, string filePath)
-    {
-        await using var stream = File.OpenRead(filePath);
-        using var content = new MultipartFormDataContent();
-        using var fileContent = new StreamContent(stream);
-        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
-        content.Add(fileContent, "file", Path.GetFileName(filePath));
-        using var request = CreateHostRequest(HttpMethod.Post, $"api/v1/events/{eventId:D}/{path}");
-        request.Content = content;
-        using var response = await httpClient.SendAsync(request);
-        await EnsureSuccessAsync(response);
-        return await response.Content.ReadFromJsonAsync<T>()
-            ?? throw new InvalidOperationException("Server 未回傳題庫資料。");
-    }
-
-    private async Task LoadQuestionBanksAsync(Guid eventId, Guid? selectQuizId = null)
-    {
-        using var request = CreateHostRequest(HttpMethod.Get, $"api/v1/events/{eventId:D}/quiz/question-banks");
-        using var response = await httpClient.SendAsync(request);
-        await EnsureSuccessAsync(response);
-        var banks = await response.Content.ReadFromJsonAsync<List<QuestionBankSummaryView>>() ?? [];
-        questionBankComboBox.BeginUpdate();
-        questionBankComboBox.Items.Clear();
-        questionBankComboBox.Items.AddRange(banks.Cast<object>().ToArray());
-        questionBankComboBox.EndUpdate();
-        if (banks.Count == 0)
-        {
-            questionBankGrid.Rows.Clear();
-            questionBankQuestions = [];
-            questionBankDetailTextBox.Text = "目前沒有題庫。";
-            return;
-        }
-
-        var index = selectQuizId.HasValue ? banks.FindIndex(bank => bank.Id == selectQuizId.Value) : 0;
-        questionBankComboBox.SelectedIndex = index >= 0 ? index : 0;
-    }
-
-    private async Task LoadQuestionBankQuestionsAsync(Guid eventId, Guid quizId)
-    {
-        var previouslySelectedId = selectedQuestionId;
-        using var request = CreateHostRequest(
-            HttpMethod.Get,
-            $"api/v1/events/{eventId:D}/quiz/question-banks/{quizId:D}/questions");
-        using var response = await httpClient.SendAsync(request);
-        await EnsureSuccessAsync(response);
-        questionBankQuestions = await response.Content.ReadFromJsonAsync<List<QuestionBankQuestionView>>() ?? [];
-        questionBankGrid.Rows.Clear();
-        foreach (var question in questionBankQuestions.OrderBy(question => question.Order))
-        {
-            var index = questionBankGrid.Rows.Add(
-                question.Order,
-                question.QuestionKey,
-                question.Category,
-                question.Difficulty,
-                question.Text,
-                question.DurationSeconds,
-                question.Status);
-            questionBankGrid.Rows[index].Tag = question;
-        }
-
-        if (questionBankGrid.Rows.Count > 0)
-        {
-            var selectedRow = questionBankGrid.Rows.Cast<DataGridViewRow>()
-                .FirstOrDefault(row =>
-                    row.Tag is QuestionBankQuestionView question && question.Id == previouslySelectedId)
-                ?? questionBankGrid.Rows[0];
-            questionBankGrid.CurrentCell = selectedRow.Cells[0];
-        }
-    }
-
-    private async void startQuestionButton_Click(object? sender, EventArgs e)
-    {
-        await RunUiOperationAsync(async () =>
-        {
-            if (!selectedQuestionId.HasValue)
-            {
-                throw new InvalidOperationException("請先建立題目。");
-            }
-
-            var eventId = GetEventId();
-            using var request = CreateHostRequest(
-                HttpMethod.Post,
-                $"api/v1/events/{eventId:D}/quiz/questions/{selectedQuestionId.Value:D}/start");
-            request.Content = JsonContent.Create(new { });
-            using var response = await httpClient.SendAsync(request);
-            await EnsureSuccessAsync(response);
-            var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
-                ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
-            ApplyQuizState(state);
-            displayModeValueLabel.Text = "目前畫面：Question";
-        });
-    }
-
-    private async void closeQuestionButton_Click(object? sender, EventArgs e)
-    {
-        await ExecuteSessionCommandAsync("close");
-    }
-
-    private async void revealAnswerButton_Click(object? sender, EventArgs e)
-    {
-        await RunUiOperationAsync(async () =>
-        {
-            if (!currentSessionId.HasValue)
-            {
-                throw new InvalidOperationException("目前沒有題目場次。");
-            }
-
-            var eventId = GetEventId();
-            using var request = CreateHostRequest(
-                HttpMethod.Post,
-                $"api/v1/events/{eventId:D}/quiz/sessions/{currentSessionId.Value:D}/reveal");
-            request.Content = JsonContent.Create(new { });
-            using var response = await httpClient.SendAsync(request);
-            await EnsureSuccessAsync(response);
-            await LoadQuizStateAsync(eventId);
-            displayModeValueLabel.Text = "目前畫面：Result";
-        });
-    }
-
-    private async void showWaitingButton_Click(object? sender, EventArgs e)
-    {
-        await SetDisplayModeAsync(DisplayMode.Waiting);
-    }
-
-    private async void showQuestionButton_Click(object? sender, EventArgs e)
-    {
-        await SetDisplayModeAsync(DisplayMode.Question);
-    }
-
-    private async void showResultButton_Click(object? sender, EventArgs e)
-    {
-        await SetDisplayModeAsync(DisplayMode.Result);
-    }
-
-    private async void showLeaderboardButton_Click(object? sender, EventArgs e)
-    {
-        await SetDisplayModeAsync(DisplayMode.Leaderboard);
-    }
-
-    private async Task SetDisplayModeAsync(DisplayMode mode)
-    {
-        await RunUiOperationAsync(async () =>
-        {
-            var eventId = GetEventId();
-            using var request = CreateHostRequest(
-                HttpMethod.Put,
-                $"api/v1/events/{eventId:D}/display/mode");
-            request.Content = JsonContent.Create(new { mode });
-            using var response = await httpClient.SendAsync(request);
-            await EnsureSuccessAsync(response);
-            var state = await response.Content.ReadFromJsonAsync<DisplayStateView>()
-                ?? throw new InvalidOperationException("Server 未回傳 Display 狀態。");
-            displayModeValueLabel.Text = $"目前畫面：{state.Mode}";
-        });
-    }
-
-    private async Task LoadDisplayStateAsync(Guid eventId)
-    {
-        using var response = await httpClient.GetAsync(
-            new Uri(GetServerUri(), $"api/v1/events/{eventId:D}/display"));
-        await EnsureSuccessAsync(response);
-        var state = await response.Content.ReadFromJsonAsync<DisplayStateView>()
-            ?? throw new InvalidOperationException("Server 未回傳 Display 狀態。");
-        displayModeValueLabel.Text = $"目前畫面：{state.Mode}";
-    }
-
-    private void UpdateDisplayModeThreadSafe(DisplayMode mode)
-    {
-        if (InvokeRequired)
-        {
-            BeginInvoke(() => UpdateDisplayModeThreadSafe(mode));
-            return;
-        }
-
-        displayModeValueLabel.Text = $"目前畫面：{mode}";
-    }
-
-    private async Task ExecuteSessionCommandAsync(string command)
-    {
-        await RunUiOperationAsync(async () =>
-        {
-            if (!currentSessionId.HasValue)
-            {
-                throw new InvalidOperationException("目前沒有題目場次。");
-            }
-
-            var eventId = GetEventId();
-            using var request = CreateHostRequest(
-                HttpMethod.Post,
-                $"api/v1/events/{eventId:D}/quiz/sessions/{currentSessionId.Value:D}/{command}");
-            request.Content = JsonContent.Create(new { });
-            using var response = await httpClient.SendAsync(request);
-            await EnsureSuccessAsync(response);
-            var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
-                ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
-            ApplyQuizState(state);
-        });
-    }
-
-    private async Task LoadQuizStateAsync(Guid eventId)
-    {
-        using var request = CreateHostRequest(
-            HttpMethod.Get,
-            $"api/v1/events/{eventId:D}/quiz/current");
-        using var response = await httpClient.SendAsync(request);
-        await EnsureSuccessAsync(response);
-        var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
-            ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
-        ApplyQuizState(state);
-        if (state.State == QuizState.Revealed && state.SessionId.HasValue)
-        {
-            await LoadQuizResultsAsync(eventId, state.SessionId.Value);
-        }
-
-        if (questionBankComboBox.SelectedItem is QuestionBankSummaryView bank)
-        {
-            await LoadQuestionBankQuestionsAsync(eventId, bank.Id);
-        }
-    }
-
-    private void RefreshQuizStateThreadSafe(Guid eventId)
-    {
-        if (IsDisposed)
-        {
-            return;
-        }
-
-        BeginInvoke(async () =>
-        {
-            try
-            {
-                await LoadQuizStateAsync(eventId);
-            }
-            catch (Exception exception)
-            {
-                statusLabel.Text = $"Quiz 狀態同步失敗：{exception.Message}";
-            }
-        });
-    }
-
-    private void UpdateQuizProgressThreadSafe(QuestionProgressNotification progress)
-    {
-        if (InvokeRequired)
-        {
-            BeginInvoke(() => UpdateQuizProgressThreadSafe(progress));
-            return;
-        }
-
-        if (currentSessionId == progress.SessionId)
-        {
-            quizProgressLabel.Text =
-                $"已作答 {progress.AnsweredCount} / {progress.ParticipantCount}　在線 {progress.OnlineCount}";
-        }
-    }
-
-    private void RefreshQuizResultsThreadSafe(Guid eventId)
-    {
-        if (IsDisposed || !currentSessionId.HasValue)
-        {
-            return;
-        }
-
-        var sessionId = currentSessionId.Value;
-        BeginInvoke(async () =>
-        {
-            try
-            {
-                await LoadQuizResultsAsync(eventId, sessionId);
-            }
-            catch (Exception exception)
-            {
-                statusLabel.Text = $"Quiz 結果同步失敗：{exception.Message}";
-            }
-        });
-    }
-
-    private async Task LoadQuizResultsAsync(Guid eventId, Guid sessionId)
-    {
-        using var statisticsRequest = CreateHostRequest(
-            HttpMethod.Get,
-            $"api/v1/events/{eventId:D}/quiz/sessions/{sessionId:D}/stats");
-        using var statisticsResponse = await httpClient.SendAsync(statisticsRequest);
-        await EnsureSuccessAsync(statisticsResponse);
-        var statistics = await statisticsResponse.Content.ReadFromJsonAsync<QuizStatisticsView>()
-            ?? throw new InvalidOperationException("Server 未回傳 Quiz 統計。");
-
-        using var leaderboardRequest = CreateHostRequest(
-            HttpMethod.Get,
-            $"api/v1/events/{eventId:D}/quiz/leaderboard?top=10");
-        using var leaderboardResponse = await httpClient.SendAsync(leaderboardRequest);
-        await EnsureSuccessAsync(leaderboardResponse);
-        var leaderboard = await leaderboardResponse.Content.ReadFromJsonAsync<QuizLeaderboardView>()
-            ?? throw new InvalidOperationException("Server 未回傳排行榜。");
-
-        quizResultLabel.Text =
-            $"結果：答對 {statistics.CorrectCount}　答錯 {statistics.IncorrectCount}　未作答 {statistics.NoAnswerCount}　正確率 {statistics.CorrectRate:P0}";
-        quizLeaderboardGrid.Rows.Clear();
-        foreach (var entry in leaderboard.Entries)
-        {
-            quizLeaderboardGrid.Rows.Add(
-                entry.Rank,
-                entry.DisplayName,
-                entry.TotalScore,
-                entry.CorrectCount,
-                entry.AnsweredCount);
-        }
-    }
-
-    private void ApplyQuizState(QuizStateView state)
-    {
-        currentQuizState = state.State;
-        currentSessionId = state.SessionId;
-        selectedQuestionId = state.QuestionId ?? selectedQuestionId;
-        currentQuestionLabel.Text = $"目前題目：{state.QuestionText ?? "等待建立或開始題目"}";
-        quizStateLabel.Text = $"狀態：{state.State}";
-        quizProgressLabel.Text = $"已作答 {state.AnsweredCount} / {state.ParticipantCount}　在線 {state.OnlineCount}";
-        if (state.State != QuizState.Revealed)
-        {
-            quizResultLabel.Text = "結果：等待公布答案";
-            quizLeaderboardGrid.Rows.Clear();
-        }
-        UpdateQuizButtons(state.State);
-        ScheduleDeadlineRefresh(state);
-    }
-
-    private void ScheduleDeadlineRefresh(QuizStateView state)
-    {
-        quizDeadlineRefreshCancellation?.Cancel();
-        quizDeadlineRefreshCancellation?.Dispose();
-        quizDeadlineRefreshCancellation = null;
+        deadlineRecoveryCancellation?.Cancel();
+        deadlineRecoveryCancellation?.Dispose();
+        deadlineRecoveryCancellation = null;
         if (state.State != QuizState.Open || !state.AnswerDeadlineUtc.HasValue)
         {
             return;
         }
 
-        quizDeadlineRefreshCancellation = new CancellationTokenSource();
-        _ = RefreshAtDeadlineAsync(
-            state.AnswerDeadlineUtc.Value,
-            quizDeadlineRefreshCancellation.Token);
+        deadlineRecoveryCancellation = new CancellationTokenSource();
+        _ = RefreshAtDeadlineAsync(state.AnswerDeadlineUtc.Value, deadlineRecoveryCancellation.Token);
     }
 
     private async Task RefreshAtDeadlineAsync(DateTimeOffset deadlineUtc, CancellationToken cancellationToken)
@@ -650,9 +429,9 @@ public partial class HostDashboardForm : Form
                 await Task.Delay(delay, cancellationToken);
             }
 
-            if (!cancellationToken.IsCancellationRequested && !IsDisposed)
+            if (!cancellationToken.IsCancellationRequested)
             {
-                BeginInvoke(async () => await LoadQuizStateAsync(GetEventId()));
+                RunOnUiAsync(RefreshQuizStateAsync);
             }
         }
         catch (OperationCanceledException)
@@ -660,260 +439,200 @@ public partial class HostDashboardForm : Form
         }
     }
 
-    private void UpdateQuizButtons(QuizState state)
+    private async Task RefreshResultsAsync()
     {
-        startQuestionButton.Enabled = selectedQuestionId.HasValue && state is QuizState.Waiting or QuizState.Revealed;
-        closeQuestionButton.Enabled = currentSessionId.HasValue && state == QuizState.Open;
-        revealAnswerButton.Enabled = currentSessionId.HasValue && state == QuizState.Closed;
-    }
-
-    private async Task LoadParticipantsAsync(Guid eventId)
-    {
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            new Uri(GetServerUri(), $"api/v1/events/{eventId:D}/participants"));
-        request.Headers.Add("X-Host-Token", hostTokenTextBox.Text);
-        using var response = await httpClient.SendAsync(request);
-        await EnsureSuccessAsync(response);
-        var participants = await response.Content.ReadFromJsonAsync<List<ParticipantView>>() ?? [];
-
-        participantGrid.Rows.Clear();
-        foreach (var participant in participants)
+        if (!quizState.SessionId.HasValue || quizState.State != QuizState.Revealed)
         {
-            UpsertParticipant(participant);
-        }
-
-        RefreshOnlineCount();
-    }
-
-    private void UpsertParticipantThreadSafe(ParticipantView participant)
-    {
-        if (InvokeRequired)
-        {
-            BeginInvoke(() => UpsertParticipant(participant));
+            quizResultView.Clear();
             return;
         }
 
-        UpsertParticipant(participant);
+        var statistics = await client.GetStatisticsAsync(quizState.SessionId.Value);
+        var leaderboard = await client.GetLeaderboardAsync();
+        quizResultView.Render(statistics, leaderboard, quizState.CorrectOptionId);
     }
 
-    private void UpsertParticipant(ParticipantView participant)
+    private async void displayModeRequested(DisplayMode mode)
     {
-        DataGridViewRow? existingRow = null;
-        foreach (DataGridViewRow row in participantGrid.Rows)
-        {
-            if (row.Tag is Guid participantId && participantId == participant.Id)
+        await RunViewOperationAsync(
+            displayControlView.SetStatus,
+            displayControlView.SetBusy,
+            async () =>
             {
-                existingRow = row;
-                break;
-            }
-        }
-
-        var targetRow = existingRow ?? participantGrid.Rows[participantGrid.Rows.Add()];
-        targetRow.Tag = participant.Id;
-        targetRow.Cells[nameColumn.Index].Value = participant.DisplayName;
-        targetRow.Cells[employeeNumberColumn.Index].Value = participant.EmployeeNumber;
-        targetRow.Cells[departmentColumn.Index].Value = participant.Department;
-        targetRow.Cells[tableNumberColumn.Index].Value = participant.TableNumber;
-        targetRow.Cells[onlineColumn.Index].Value = participant.IsOnline ? "在線" : "離線";
-        targetRow.Cells[scoreColumn.Index].Value = participant.Score;
-        RefreshOnlineCount();
+                var state = await client.SetDisplayModeAsync(mode);
+                displayMode = state.Mode;
+                displayControlView.Render(displayMode);
+                displayControlView.SetStatus($"大螢幕已切換至 {displayMode}。");
+                RenderContext();
+            });
     }
 
-    private void RefreshOnlineCount()
+    private void HandleParticipantChanged(ParticipantView participant)
     {
-        var onlineCount = participantGrid.Rows
-            .Cast<DataGridViewRow>()
-            .Count(row => string.Equals(row.Cells[onlineColumn.Index].Value?.ToString(), "在線", StringComparison.Ordinal));
-        onlineCountLabel.Text = $"在線 {onlineCount} / 總計 {participantGrid.Rows.Count}";
+        participants[participant.Id] = participant;
+        eventManagementView.UpsertParticipant(participant);
+        RenderContext();
     }
 
-    private Uri GetServerUri()
+    private void HandleQuestionProgress(QuestionProgressNotification progress)
     {
-        if (!Uri.TryCreate(serverUrlTextBox.Text.Trim(), UriKind.Absolute, out var uri) ||
-            (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+        if (quizState.SessionId != progress.SessionId)
         {
-            throw new InvalidOperationException("Server URL 必須是有效的 HTTP 或 HTTPS 網址。");
+            return;
         }
 
-        return new Uri(uri.AbsoluteUri.TrimEnd('/') + "/");
+        quizState = quizState with
+        {
+            AnsweredCount = progress.AnsweredCount,
+            ParticipantCount = progress.ParticipantCount,
+            OnlineCount = progress.OnlineCount
+        };
+        quizControlView.UpdateProgress(progress);
+        RenderContext();
     }
 
-    private Guid GetEventId()
+    private void RenderContext()
     {
-        return Guid.TryParse(eventIdTextBox.Text, out var eventId)
-            ? eventId
-            : throw new InvalidOperationException("活動 ID 格式不正確。");
+        var selected = questionBankView.SelectedQuestion;
+        var position = selected is null || questions.Count == 0
+            ? "— / —"
+            : $"{GetQuestionIndex(selected) + 1} / {questions.Count}";
+        currentEventHeaderLabel.Text = $"Current Event：{currentEventName}";
+        currentQuizHeaderLabel.Text = $"Quiz：{currentQuizTitle}";
+        participantHeaderLabel.Text = $"Participants {participants.Count}";
+        serverHeaderLabel.Text = connectionState switch
+        {
+            HostConnectionState.Connected => "● Server Connected",
+            HostConnectionState.Connecting => "● Server Connecting...",
+            HostConnectionState.Reconnecting => "● Server Reconnecting...",
+            _ => "● Server Disconnected"
+        };
+        serverHeaderLabel.ForeColor = connectionState == HostConnectionState.Connected
+            ? Color.DarkGreen
+            : connectionState == HostConnectionState.Disconnected
+                ? Color.Firebrick
+                : Color.DarkOrange;
+        displayHeaderLabel.Text = $"Display: {displayMode}";
+        dashboardView.Render(
+            currentEventName,
+            currentQuizTitle,
+            participants.Count,
+            position,
+            quizState.State,
+            connectionState,
+            displayMode);
     }
 
-    private HttpRequestMessage CreateHostRequest(HttpMethod method, string relativeUri)
+    private void navigationButton_Click(object? sender, EventArgs e)
     {
-        var request = new HttpRequestMessage(method, new Uri(GetServerUri(), relativeUri));
-        request.Headers.Add("X-Host-Token", hostTokenTextBox.Text);
-        return request;
+        if (sender is Button { Tag: HostView view })
+        {
+            ShowView(view);
+        }
     }
 
-    private async Task RunUiOperationAsync(Func<Task> operation)
+    private void ShowView(HostView view)
     {
-        createEventButton.Enabled = false;
-        connectButton.Enabled = false;
+        dashboardView.Visible = view == HostView.Dashboard;
+        eventManagementView.Visible = view == HostView.Event;
+        questionBankView.Visible = view == HostView.QuestionBank;
+        quizControlView.Visible = view == HostView.Quiz;
+        quizResultView.Visible = view == HostView.Results;
+        displayControlView.Visible = view == HostView.Display;
+        var selectedControl = view switch
+        {
+            HostView.Dashboard => (Control)dashboardView,
+            HostView.Event => eventManagementView,
+            HostView.QuestionBank => questionBankView,
+            HostView.Quiz => quizControlView,
+            HostView.Results => quizResultView,
+            HostView.Display => displayControlView,
+            _ => dashboardView
+        };
+        selectedControl.BringToFront();
+        foreach (var button in navigationPanel.Controls.OfType<Button>())
+        {
+            button.BackColor = button.Tag is HostView buttonView && buttonView == view
+                ? Color.FromArgb(35, 101, 150)
+                : Color.FromArgb(22, 43, 65);
+        }
+    }
 
+    private async Task RunViewOperationAsync(
+        Action<string, bool> setStatus,
+        Action<bool> setBusy,
+        Func<Task> operation)
+    {
+        setBusy(true);
         try
         {
             await operation();
         }
         catch (Exception exception)
         {
-            statusLabel.Text = "操作失敗";
-            MessageBox.Show(this, exception.Message, "EventHub", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            setStatus(exception.Message, true);
         }
         finally
         {
-            createEventButton.Enabled = true;
-            connectButton.Enabled = true;
+            setBusy(false);
+            RenderQuizState();
         }
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response)
+    private Guid GetCurrentSessionId() => quizState.SessionId
+        ?? throw new InvalidOperationException("目前沒有題目場次。");
+
+    private int GetQuestionIndex(QuestionBankQuestionView question)
     {
-        if (response.IsSuccessStatusCode)
+        for (var index = 0; index < questions.Count; index++)
+        {
+            if (questions[index].Id == question.Id)
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private void RunOnUi(Action action)
+    {
+        if (IsDisposed)
         {
             return;
         }
 
-        var problem = await response.Content.ReadFromJsonAsync<ProblemResponse>();
-        throw new InvalidOperationException(problem?.Detail ?? $"Server 回傳 {(int)response.StatusCode}。");
-    }
-
-    private Task UpdateStatusAsync(string message)
-    {
-        UpdateStatusThreadSafe(message);
-        return Task.CompletedTask;
-    }
-
-    private void UpdateStatusThreadSafe(string message)
-    {
         if (InvokeRequired)
         {
-            BeginInvoke(() => statusLabel.Text = message);
+            BeginInvoke(action);
             return;
         }
 
-        statusLabel.Text = message;
+        action();
+    }
+
+    private void RunOnUiAsync(Func<Task> action)
+    {
+        RunOnUi(async () =>
+        {
+            try
+            {
+                await action();
+            }
+            catch (Exception exception)
+            {
+                quizControlView.SetStatus($"狀態同步失敗：{exception.Message}", true);
+            }
+        });
     }
 
     private async void HostDashboardForm_FormClosed(object? sender, FormClosedEventArgs e)
     {
-        quizDeadlineRefreshCancellation?.Cancel();
-        quizDeadlineRefreshCancellation?.Dispose();
-        await DisconnectHubAsync();
-        joinQrCodePictureBox.Image?.Dispose();
-        httpClient.Dispose();
+        deadlineRecoveryCancellation?.Cancel();
+        deadlineRecoveryCancellation?.Dispose();
+        await client.DisposeAsync();
     }
 
-    private async Task DisconnectHubAsync()
-    {
-        if (hubConnection is null)
-        {
-            return;
-        }
-
-        await hubConnection.DisposeAsync();
-        hubConnection = null;
-    }
-
-    private sealed record CreateEventRequest(string Name, DateTime EventDateUtc);
-
-    private sealed record CreateEventResult(
-        EventView Event,
-        string HostToken,
-        EventJoinInfoView JoinInfo);
-
-    private sealed record EventView(Guid Id, string Name);
-
-    private sealed record EventJoinInfoView(
-        Guid EventId,
-        string EventName,
-        string JoinCode,
-        string JoinUrl,
-        bool IsJoinOpen,
-        bool IsLoopback);
-
-    private sealed record ParticipantView(
-        Guid Id,
-        string DisplayName,
-        string? EmployeeNumber,
-        string? Department,
-        string? TableNumber,
-        bool IsOnline,
-        int Score);
-
-    private sealed record ProblemResponse(string? Detail);
-
-    private sealed record CreateQuestionRequest(
-        string QuestionText,
-        IReadOnlyCollection<string> Options,
-        int CorrectOptionIndex,
-        int AnswerDurationSeconds);
-
-    private sealed record QuestionView(Guid Id, string Text);
-
-    private sealed record QuizStateView(
-        QuizState State,
-        Guid? SessionId,
-        Guid? QuestionId,
-        string? QuestionText,
-        int AnsweredCount,
-        int ParticipantCount,
-        int OnlineCount,
-        DateTimeOffset? AnswerDeadlineUtc);
-
-    private sealed record QuestionStartedNotification(Guid SessionId);
-
-    private sealed record QuestionProgressNotification(
-        Guid SessionId,
-        int AnsweredCount,
-        int ParticipantCount,
-        int OnlineCount);
-
-    private sealed record QuestionClosedNotification(Guid SessionId);
-
-    private sealed record AnswerRevealedNotification(Guid SessionId);
-
-    private sealed record LeaderboardUpdatedNotification(Guid SessionId);
-
-    private sealed record DisplayModeChangedNotification(Guid EventId, DisplayMode Mode);
-
-    private sealed record DisplayStateView(DisplayMode Mode);
-
-    private sealed record QuizStatisticsView(
-        int CorrectCount,
-        int IncorrectCount,
-        int NoAnswerCount,
-        decimal CorrectRate);
-
-    private sealed record QuizLeaderboardView(IReadOnlyList<QuizLeaderboardEntryView> Entries);
-
-    private sealed record QuizLeaderboardEntryView(
-        int Rank,
-        string DisplayName,
-        int TotalScore,
-        int CorrectCount,
-        int AnsweredCount);
-
-    private enum QuizState
-    {
-        Waiting,
-        Open,
-        Closed,
-        Revealed
-    }
-
-    private enum DisplayMode
-    {
-        Waiting,
-        Question,
-        Result,
-        Leaderboard
-    }
+    private static QuizStateView CreateWaitingState() =>
+        new(QuizState.Waiting, null, null, null, [], null, null, 0, 0, 0, null);
 }

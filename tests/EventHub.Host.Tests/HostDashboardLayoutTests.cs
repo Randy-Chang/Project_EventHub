@@ -6,22 +6,54 @@ namespace EventHub.Host.Tests;
 public sealed class HostDashboardLayoutTests
 {
     [Fact]
-    public void QuizControls_AreReachableAndSectionsDoNotOverlap()
+    public void MainShell_UsesNavigationHeaderAndDedicatedViews()
     {
         using var form = new HostDashboardForm();
 
-        var questionBank = Assert.Single(form.Controls.Find("questionBankGroupBox", true));
-        var quiz = Assert.Single(form.Controls.Find("quizGroupBox", true));
-        var start = Assert.Single(form.Controls.Find("startQuestionButton", true));
-        var close = Assert.Single(form.Controls.Find("closeQuestionButton", true));
-        var reveal = Assert.Single(form.Controls.Find("revealAnswerButton", true));
+        var navigation = Assert.Single(form.Controls.Find("navigationPanel", true));
+        var header = Assert.Single(form.Controls.Find("headerPanel", true));
+        var content = Assert.Single(form.Controls.Find("contentPanel", true));
+        var navigationButtons = new[]
+        {
+            "dashboardNavigationButton",
+            "eventNavigationButton",
+            "questionBankNavigationButton",
+            "quizNavigationButton",
+            "resultsNavigationButton",
+            "displayNavigationButton"
+        };
+        var views = new[]
+        {
+            "dashboardView",
+            "eventManagementView",
+            "questionBankView",
+            "quizControlView",
+            "quizResultView",
+            "displayControlView"
+        };
 
-        Assert.True(form.AutoScroll);
-        Assert.Equal(questionBank, start.Parent);
-        Assert.Equal(questionBank, close.Parent);
-        Assert.Equal(questionBank, reveal.Parent);
-        Assert.True(quiz.Top >= questionBank.Bottom);
-        Assert.Equal(AnchorStyles.None, quiz.Anchor & AnchorStyles.Bottom);
-        Assert.True(start.Bottom <= questionBank.ClientSize.Height);
+        Assert.All(navigationButtons, name =>
+            Assert.Equal(navigation, Assert.Single(form.Controls.Find(name, true)).Parent));
+        Assert.All(views, name =>
+        {
+            var view = Assert.Single(form.Controls.Find(name, true));
+            Assert.Equal(content, view.Parent);
+            Assert.Equal(DockStyle.Fill, view.Dock);
+        });
+        Assert.True(header.Height > 0);
+        Assert.True(form.MinimumSize.Width >= 1024);
+        Assert.True(form.MinimumSize.Height >= 700);
+    }
+
+    [Fact]
+    public void QuizControl_ExposesOnePrimaryWorkflowAction()
+    {
+        using var form = new HostDashboardForm();
+
+        var quizView = Assert.Single(form.Controls.Find("quizControlView", true));
+        var primaryAction = Assert.Single(quizView.Controls.Find("primaryActionButton", true));
+
+        Assert.IsType<Button>(primaryAction);
+        Assert.False(primaryAction.Enabled);
     }
 }

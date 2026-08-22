@@ -1,5 +1,7 @@
 #nullable disable
 
+using EventHub.Host.Views;
+
 namespace EventHub.Host;
 
 partial class HostDashboardForm
@@ -8,741 +10,194 @@ partial class HostDashboardForm
 
     protected override void Dispose(bool disposing)
     {
-        if (disposing && (components != null))
-        {
-            components.Dispose();
-        }
+        if (disposing && components != null) components.Dispose();
         base.Dispose(disposing);
     }
 
-    #region Windows Form Designer generated code
-
     private void InitializeComponent()
     {
-        serverUrlLabel = new Label();
-        serverUrlTextBox = new TextBox();
-        eventNameLabel = new Label();
-        eventNameTextBox = new TextBox();
-        eventDateLabel = new Label();
-        eventDatePicker = new DateTimePicker();
-        createEventButton = new Button();
-        eventIdLabel = new Label();
-        eventIdTextBox = new TextBox();
-        hostTokenLabel = new Label();
-        hostTokenTextBox = new TextBox();
-        connectButton = new Button();
-        statusLabel = new Label();
-        onlineCountLabel = new Label();
-        joinInfoGroupBox = new GroupBox();
-        joinEventNameLabel = new Label();
-        joinCodeTitleLabel = new Label();
-        joinCodeValueLabel = new Label();
-        joinUrlTextBox = new TextBox();
-        copyJoinUrlButton = new Button();
-        joinUrlWarningLabel = new Label();
-        joinQrCodePictureBox = new PictureBox();
-        displayControlGroupBox = new GroupBox();
-        displayModeValueLabel = new Label();
-        showWaitingButton = new Button();
-        showQuestionButton = new Button();
-        showResultButton = new Button();
-        showLeaderboardButton = new Button();
-        participantGrid = new DataGridView();
-        nameColumn = new DataGridViewTextBoxColumn();
-        employeeNumberColumn = new DataGridViewTextBoxColumn();
-        departmentColumn = new DataGridViewTextBoxColumn();
-        tableNumberColumn = new DataGridViewTextBoxColumn();
-        onlineColumn = new DataGridViewTextBoxColumn();
-        scoreColumn = new DataGridViewTextBoxColumn();
-        questionBankGroupBox = new GroupBox();
-        importCsvButton = new Button();
-        exportTemplateButton = new Button();
-        refreshQuestionBanksButton = new Button();
-        questionBankComboBox = new ComboBox();
-        previousQuestionButton = new Button();
-        nextQuestionButton = new Button();
-        questionBankGrid = new DataGridView();
-        questionBankDetailTextBox = new TextBox();
-        questionBankActionHintLabel = new Label();
-        quizGroupBox = new GroupBox();
-        questionTextLabel = new Label();
-        questionTextBox = new TextBox();
-        optionALabel = new Label();
-        optionATextBox = new TextBox();
-        optionBLabel = new Label();
-        optionBTextBox = new TextBox();
-        optionCLabel = new Label();
-        optionCTextBox = new TextBox();
-        optionDLabel = new Label();
-        optionDTextBox = new TextBox();
-        correctOptionLabel = new Label();
-        correctOptionComboBox = new ComboBox();
-        answerDurationLabel = new Label();
-        answerDurationNumeric = new NumericUpDown();
-        createQuestionButton = new Button();
-        currentQuestionLabel = new Label();
-        quizStateLabel = new Label();
-        quizProgressLabel = new Label();
-        startQuestionButton = new Button();
-        closeQuestionButton = new Button();
-        revealAnswerButton = new Button();
-        quizResultLabel = new Label();
-        quizLeaderboardLabel = new Label();
-        quizLeaderboardGrid = new DataGridView();
-        rankColumn = new DataGridViewTextBoxColumn();
-        leaderboardNameColumn = new DataGridViewTextBoxColumn();
-        totalScoreColumn = new DataGridViewTextBoxColumn();
-        correctCountColumn = new DataGridViewTextBoxColumn();
-        answeredCountColumn = new DataGridViewTextBoxColumn();
-        joinInfoGroupBox.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)joinQrCodePictureBox).BeginInit();
-        displayControlGroupBox.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)participantGrid).BeginInit();
-        questionBankGroupBox.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)questionBankGrid).BeginInit();
-        quizGroupBox.SuspendLayout();
-        ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).BeginInit();
-        ((System.ComponentModel.ISupportInitialize)quizLeaderboardGrid).BeginInit();
+        shellTableLayoutPanel = new TableLayoutPanel();
+        navigationPanel = new Panel();
+        brandLabel = new Label();
+        dashboardNavigationButton = new Button();
+        eventNavigationButton = new Button();
+        questionBankNavigationButton = new Button();
+        quizNavigationButton = new Button();
+        resultsNavigationButton = new Button();
+        displayNavigationButton = new Button();
+        headerPanel = new Panel();
+        currentEventHeaderLabel = new Label();
+        currentQuizHeaderLabel = new Label();
+        participantHeaderLabel = new Label();
+        serverHeaderLabel = new Label();
+        displayHeaderLabel = new Label();
+        contentPanel = new Panel();
+        dashboardView = new DashboardView();
+        eventManagementView = new EventManagementView();
+        questionBankView = new QuestionBankView();
+        quizControlView = new QuizControlView();
+        quizResultView = new QuizResultView();
+        displayControlView = new DisplayControlView();
+        shellTableLayoutPanel.SuspendLayout();
+        navigationPanel.SuspendLayout();
+        headerPanel.SuspendLayout();
+        contentPanel.SuspendLayout();
         SuspendLayout();
-        //
-        // serverUrlLabel
-        //
-        serverUrlLabel.AutoSize = true;
-        serverUrlLabel.Location = new Point(20, 23);
-        serverUrlLabel.Name = "serverUrlLabel";
-        serverUrlLabel.Size = new Size(70, 15);
-        serverUrlLabel.TabIndex = 0;
-        serverUrlLabel.Text = "Server URL";
-        //
-        // serverUrlTextBox
-        //
-        serverUrlTextBox.Location = new Point(105, 20);
-        serverUrlTextBox.Name = "serverUrlTextBox";
-        serverUrlTextBox.Size = new Size(245, 23);
-        serverUrlTextBox.TabIndex = 1;
-        serverUrlTextBox.Text = "http://localhost:5000";
-        //
-        // eventNameLabel
-        //
-        eventNameLabel.AutoSize = true;
-        eventNameLabel.Location = new Point(20, 61);
-        eventNameLabel.Name = "eventNameLabel";
-        eventNameLabel.Size = new Size(55, 15);
-        eventNameLabel.TabIndex = 2;
-        eventNameLabel.Text = "活動名稱";
-        //
-        // eventNameTextBox
-        //
-        eventNameTextBox.Location = new Point(105, 58);
-        eventNameTextBox.Name = "eventNameTextBox";
-        eventNameTextBox.Size = new Size(245, 23);
-        eventNameTextBox.TabIndex = 3;
-        eventNameTextBox.Text = "公司活動";
-        //
-        // eventDateLabel
-        //
-        eventDateLabel.AutoSize = true;
-        eventDateLabel.Location = new Point(370, 61);
-        eventDateLabel.Name = "eventDateLabel";
-        eventDateLabel.Size = new Size(55, 15);
-        eventDateLabel.TabIndex = 4;
-        eventDateLabel.Text = "活動日期";
-        //
-        // eventDatePicker
-        //
-        eventDatePicker.CustomFormat = "yyyy/MM/dd HH:mm";
-        eventDatePicker.Format = DateTimePickerFormat.Custom;
-        eventDatePicker.Location = new Point(440, 58);
-        eventDatePicker.Name = "eventDatePicker";
-        eventDatePicker.Size = new Size(160, 23);
-        eventDatePicker.TabIndex = 5;
-        //
-        // createEventButton
-        //
-        createEventButton.Location = new Point(620, 57);
-        createEventButton.Name = "createEventButton";
-        createEventButton.Size = new Size(105, 25);
-        createEventButton.TabIndex = 6;
-        createEventButton.Text = "建立活動";
-        createEventButton.UseVisualStyleBackColor = true;
-        createEventButton.Click += createEventButton_Click;
-        //
-        // eventIdLabel
-        //
-        eventIdLabel.AutoSize = true;
-        eventIdLabel.Location = new Point(20, 101);
-        eventIdLabel.Name = "eventIdLabel";
-        eventIdLabel.Size = new Size(46, 15);
-        eventIdLabel.TabIndex = 7;
-        eventIdLabel.Text = "活動 ID";
-        //
-        // eventIdTextBox
-        //
-        eventIdTextBox.Location = new Point(105, 98);
-        eventIdTextBox.Name = "eventIdTextBox";
-        eventIdTextBox.Size = new Size(300, 23);
-        eventIdTextBox.TabIndex = 8;
-        //
-        // hostTokenLabel
-        //
-        hostTokenLabel.AutoSize = true;
-        hostTokenLabel.Location = new Point(420, 101);
-        hostTokenLabel.Name = "hostTokenLabel";
-        hostTokenLabel.Size = new Size(67, 15);
-        hostTokenLabel.TabIndex = 9;
-        hostTokenLabel.Text = "Host Token";
-        //
-        // hostTokenTextBox
-        //
-        hostTokenTextBox.Location = new Point(500, 98);
-        hostTokenTextBox.Name = "hostTokenTextBox";
-        hostTokenTextBox.PasswordChar = '●';
-        hostTokenTextBox.Size = new Size(225, 23);
-        hostTokenTextBox.TabIndex = 10;
-        //
-        // connectButton
-        //
-        connectButton.Location = new Point(740, 97);
-        connectButton.Name = "connectButton";
-        connectButton.Size = new Size(105, 25);
-        connectButton.TabIndex = 11;
-        connectButton.Text = "連線監看";
-        connectButton.UseVisualStyleBackColor = true;
-        connectButton.Click += connectButton_Click;
-        //
-        // statusLabel
-        //
-        statusLabel.AutoSize = true;
-        statusLabel.Location = new Point(20, 143);
-        statusLabel.Name = "statusLabel";
-        statusLabel.Size = new Size(79, 15);
-        statusLabel.TabIndex = 12;
-        statusLabel.Text = "尚未連線";
-        //
-        // onlineCountLabel
-        //
-        onlineCountLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        onlineCountLabel.Location = new Point(690, 143);
-        onlineCountLabel.Name = "onlineCountLabel";
-        onlineCountLabel.Size = new Size(155, 15);
-        onlineCountLabel.TabIndex = 13;
-        onlineCountLabel.Text = "在線 0 / 總計 0";
-        onlineCountLabel.TextAlign = ContentAlignment.TopRight;
-        //
-        // joinInfoGroupBox
-        //
-        joinInfoGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        joinInfoGroupBox.Controls.Add(joinEventNameLabel);
-        joinInfoGroupBox.Controls.Add(joinCodeTitleLabel);
-        joinInfoGroupBox.Controls.Add(joinCodeValueLabel);
-        joinInfoGroupBox.Controls.Add(joinUrlTextBox);
-        joinInfoGroupBox.Controls.Add(copyJoinUrlButton);
-        joinInfoGroupBox.Controls.Add(joinUrlWarningLabel);
-        joinInfoGroupBox.Controls.Add(joinQrCodePictureBox);
-        joinInfoGroupBox.Location = new Point(20, 170);
-        joinInfoGroupBox.Name = "joinInfoGroupBox";
-        joinInfoGroupBox.Size = new Size(825, 190);
-        joinInfoGroupBox.TabIndex = 14;
-        joinInfoGroupBox.TabStop = false;
-        joinInfoGroupBox.Text = "活動加入資訊";
-        joinEventNameLabel.AutoEllipsis = true;
-        joinEventNameLabel.Location = new Point(15, 25);
-        joinEventNameLabel.Name = "joinEventNameLabel";
-        joinEventNameLabel.Size = new Size(560, 20);
-        joinEventNameLabel.Text = "活動：尚未建立或連線";
-        joinCodeTitleLabel.AutoSize = true;
-        joinCodeTitleLabel.Location = new Point(15, 57);
-        joinCodeTitleLabel.Name = "joinCodeTitleLabel";
-        joinCodeTitleLabel.Text = "Join Code";
-        joinCodeValueLabel.AutoSize = true;
-        joinCodeValueLabel.Font = new Font("Segoe UI", 14F, FontStyle.Bold);
-        joinCodeValueLabel.Location = new Point(90, 51);
-        joinCodeValueLabel.Name = "joinCodeValueLabel";
-        joinCodeValueLabel.Text = "------";
-        joinUrlTextBox.Location = new Point(15, 88);
-        joinUrlTextBox.Name = "joinUrlTextBox";
-        joinUrlTextBox.ReadOnly = true;
-        joinUrlTextBox.Size = new Size(560, 23);
-        copyJoinUrlButton.Location = new Point(15, 125);
-        copyJoinUrlButton.Name = "copyJoinUrlButton";
-        copyJoinUrlButton.Size = new Size(100, 30);
-        copyJoinUrlButton.Text = "複製網址";
-        copyJoinUrlButton.UseVisualStyleBackColor = true;
-        copyJoinUrlButton.Click += copyJoinUrlButton_Click;
-        joinUrlWarningLabel.AutoEllipsis = true;
-        joinUrlWarningLabel.Location = new Point(125, 132);
-        joinUrlWarningLabel.Name = "joinUrlWarningLabel";
-        joinUrlWarningLabel.Size = new Size(450, 35);
-        joinUrlWarningLabel.Text = "建立活動後顯示加入網址與 QR Code。";
-        joinQrCodePictureBox.BorderStyle = BorderStyle.FixedSingle;
-        joinQrCodePictureBox.Location = new Point(645, 22);
-        joinQrCodePictureBox.Name = "joinQrCodePictureBox";
-        joinQrCodePictureBox.Size = new Size(150, 150);
-        joinQrCodePictureBox.SizeMode = PictureBoxSizeMode.Zoom;
-        joinQrCodePictureBox.TabStop = false;
-        //
-        // displayControlGroupBox
-        //
-        displayControlGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        displayControlGroupBox.Controls.Add(displayModeValueLabel);
-        displayControlGroupBox.Controls.Add(showWaitingButton);
-        displayControlGroupBox.Controls.Add(showQuestionButton);
-        displayControlGroupBox.Controls.Add(showResultButton);
-        displayControlGroupBox.Controls.Add(showLeaderboardButton);
-        displayControlGroupBox.Location = new Point(20, 375);
-        displayControlGroupBox.Name = "displayControlGroupBox";
-        displayControlGroupBox.Size = new Size(825, 70);
-        displayControlGroupBox.TabIndex = 15;
-        displayControlGroupBox.TabStop = false;
-        displayControlGroupBox.Text = "大螢幕控制";
-        displayModeValueLabel.AutoSize = true;
-        displayModeValueLabel.Location = new Point(15, 32);
-        displayModeValueLabel.Name = "displayModeValueLabel";
-        displayModeValueLabel.Size = new Size(112, 15);
-        displayModeValueLabel.Text = "目前畫面：Waiting";
-        showWaitingButton.Location = new Point(220, 24);
-        showWaitingButton.Name = "showWaitingButton";
-        showWaitingButton.Size = new Size(125, 32);
-        showWaitingButton.Text = "顯示等待畫面";
-        showWaitingButton.UseVisualStyleBackColor = true;
-        showWaitingButton.Click += showWaitingButton_Click;
-        showQuestionButton.Location = new Point(355, 24);
-        showQuestionButton.Name = "showQuestionButton";
-        showQuestionButton.Size = new Size(125, 32);
-        showQuestionButton.Text = "顯示題目";
-        showQuestionButton.UseVisualStyleBackColor = true;
-        showQuestionButton.Click += showQuestionButton_Click;
-        showResultButton.Location = new Point(490, 24);
-        showResultButton.Name = "showResultButton";
-        showResultButton.Size = new Size(125, 32);
-        showResultButton.Text = "顯示結果";
-        showResultButton.UseVisualStyleBackColor = true;
-        showResultButton.Click += showResultButton_Click;
-        showLeaderboardButton.Location = new Point(625, 24);
-        showLeaderboardButton.Name = "showLeaderboardButton";
-        showLeaderboardButton.Size = new Size(155, 32);
-        showLeaderboardButton.Text = "顯示排行榜";
-        showLeaderboardButton.UseVisualStyleBackColor = true;
-        showLeaderboardButton.Click += showLeaderboardButton_Click;
-        //
-        // participantGrid
-        //
-        participantGrid.AllowUserToAddRows = false;
-        participantGrid.AllowUserToDeleteRows = false;
-        participantGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        participantGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        participantGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        participantGrid.Columns.AddRange(new DataGridViewColumn[] { nameColumn, employeeNumberColumn, departmentColumn, tableNumberColumn, onlineColumn, scoreColumn });
-        participantGrid.Location = new Point(20, 460);
-        participantGrid.MultiSelect = false;
-        participantGrid.Name = "participantGrid";
-        participantGrid.ReadOnly = true;
-        participantGrid.RowHeadersVisible = false;
-        participantGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        participantGrid.Size = new Size(825, 160);
-        participantGrid.TabIndex = 15;
-        //
-        // columns
-        //
-        nameColumn.HeaderText = "顯示名稱";
-        nameColumn.Name = "nameColumn";
-        nameColumn.ReadOnly = true;
-        employeeNumberColumn.HeaderText = "員工編號";
-        employeeNumberColumn.Name = "employeeNumberColumn";
-        employeeNumberColumn.ReadOnly = true;
-        departmentColumn.HeaderText = "部門";
-        departmentColumn.Name = "departmentColumn";
-        departmentColumn.ReadOnly = true;
-        tableNumberColumn.HeaderText = "桌次";
-        tableNumberColumn.Name = "tableNumberColumn";
-        tableNumberColumn.ReadOnly = true;
-        onlineColumn.HeaderText = "狀態";
-        onlineColumn.Name = "onlineColumn";
-        onlineColumn.ReadOnly = true;
-        scoreColumn.HeaderText = "分數";
-        scoreColumn.Name = "scoreColumn";
-        scoreColumn.ReadOnly = true;
-        //
-        // quizGroupBox
-        //
-        quizGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        quizGroupBox.Controls.Add(questionTextLabel);
-        quizGroupBox.Controls.Add(questionTextBox);
-        quizGroupBox.Controls.Add(optionALabel);
-        quizGroupBox.Controls.Add(optionATextBox);
-        quizGroupBox.Controls.Add(optionBLabel);
-        quizGroupBox.Controls.Add(optionBTextBox);
-        quizGroupBox.Controls.Add(optionCLabel);
-        quizGroupBox.Controls.Add(optionCTextBox);
-        quizGroupBox.Controls.Add(optionDLabel);
-        quizGroupBox.Controls.Add(optionDTextBox);
-        quizGroupBox.Controls.Add(correctOptionLabel);
-        quizGroupBox.Controls.Add(correctOptionComboBox);
-        quizGroupBox.Controls.Add(answerDurationLabel);
-        quizGroupBox.Controls.Add(answerDurationNumeric);
-        quizGroupBox.Controls.Add(createQuestionButton);
-        quizGroupBox.Controls.Add(currentQuestionLabel);
-        quizGroupBox.Controls.Add(quizStateLabel);
-        quizGroupBox.Controls.Add(quizProgressLabel);
-        quizGroupBox.Controls.Add(quizResultLabel);
-        quizGroupBox.Controls.Add(quizLeaderboardLabel);
-        quizGroupBox.Controls.Add(quizLeaderboardGrid);
-        quizGroupBox.Location = new Point(20, 1070);
-        quizGroupBox.Name = "quizGroupBox";
-        quizGroupBox.Size = new Size(825, 475);
-        quizGroupBox.TabIndex = 16;
-        quizGroupBox.TabStop = false;
-        quizGroupBox.Text = "Quiz 快問快答";
-        //
-        // questionTextLabel / questionTextBox
-        //
-        questionTextLabel.AutoSize = true;
-        questionTextLabel.Location = new Point(15, 29);
-        questionTextLabel.Text = "題目";
-        questionTextBox.Location = new Point(55, 25);
-        questionTextBox.Name = "questionTextBox";
-        questionTextBox.Size = new Size(350, 23);
-        questionTextBox.Text = "1 + 1 = ?";
-        //
-        // options
-        //
-        optionALabel.AutoSize = true;
-        optionALabel.Location = new Point(15, 66);
-        optionALabel.Text = "A";
-        optionATextBox.Location = new Point(35, 62);
-        optionATextBox.Name = "optionATextBox";
-        optionATextBox.Size = new Size(170, 23);
-        optionATextBox.Text = "1";
-        optionBLabel.AutoSize = true;
-        optionBLabel.Location = new Point(220, 66);
-        optionBLabel.Text = "B";
-        optionBTextBox.Location = new Point(240, 62);
-        optionBTextBox.Name = "optionBTextBox";
-        optionBTextBox.Size = new Size(165, 23);
-        optionBTextBox.Text = "2";
-        optionCLabel.AutoSize = true;
-        optionCLabel.Location = new Point(15, 101);
-        optionCLabel.Text = "C";
-        optionCTextBox.Location = new Point(35, 97);
-        optionCTextBox.Name = "optionCTextBox";
-        optionCTextBox.Size = new Size(170, 23);
-        optionCTextBox.Text = "3";
-        optionDLabel.AutoSize = true;
-        optionDLabel.Location = new Point(220, 101);
-        optionDLabel.Text = "D";
-        optionDTextBox.Location = new Point(240, 97);
-        optionDTextBox.Name = "optionDTextBox";
-        optionDTextBox.Size = new Size(165, 23);
-        optionDTextBox.Text = "4";
-        //
-        // quiz authoring settings
-        //
-        correctOptionLabel.AutoSize = true;
-        correctOptionLabel.Location = new Point(430, 29);
-        correctOptionLabel.Text = "正確答案";
-        correctOptionComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        correctOptionComboBox.Items.AddRange(new object[] { "A", "B", "C", "D" });
-        correctOptionComboBox.Location = new Point(500, 25);
-        correctOptionComboBox.Name = "correctOptionComboBox";
-        correctOptionComboBox.SelectedIndex = 1;
-        correctOptionComboBox.Size = new Size(65, 23);
-        answerDurationLabel.AutoSize = true;
-        answerDurationLabel.Location = new Point(580, 29);
-        answerDurationLabel.Text = "作答秒數";
-        answerDurationNumeric.Location = new Point(650, 25);
-        answerDurationNumeric.Maximum = new decimal(new int[] { 300, 0, 0, 0 });
-        answerDurationNumeric.Minimum = new decimal(new int[] { 3, 0, 0, 0 });
-        answerDurationNumeric.Name = "answerDurationNumeric";
-        answerDurationNumeric.Size = new Size(60, 23);
-        answerDurationNumeric.Value = new decimal(new int[] { 20, 0, 0, 0 });
-        createQuestionButton.Location = new Point(430, 62);
-        createQuestionButton.Name = "createQuestionButton";
-        createQuestionButton.Size = new Size(130, 58);
-        createQuestionButton.Text = "建立題目";
-        createQuestionButton.UseVisualStyleBackColor = true;
-        createQuestionButton.Click += createQuestionButton_Click;
-        //
-        // quiz status
-        //
-        currentQuestionLabel.AutoEllipsis = true;
-        currentQuestionLabel.Location = new Point(15, 145);
-        currentQuestionLabel.Name = "currentQuestionLabel";
-        currentQuestionLabel.Size = new Size(785, 22);
-        currentQuestionLabel.Text = "目前題目：等待建立或開始題目";
-        quizStateLabel.AutoSize = true;
-        quizStateLabel.Location = new Point(15, 177);
-        quizStateLabel.Name = "quizStateLabel";
-        quizStateLabel.Text = "狀態：Waiting";
-        quizProgressLabel.AutoSize = true;
-        quizProgressLabel.Location = new Point(190, 177);
-        quizProgressLabel.Name = "quizProgressLabel";
-        quizProgressLabel.Text = "已作答 0 / 0　在線 0";
-        startQuestionButton.Enabled = false;
-        quizResultLabel.AutoSize = true;
-        quizResultLabel.Location = new Point(15, 210);
-        quizResultLabel.Name = "quizResultLabel";
-        quizResultLabel.Text = "結果：等待公布答案";
-        startQuestionButton.Location = new Point(15, 65);
-        startQuestionButton.Name = "startQuestionButton";
-        startQuestionButton.Size = new Size(110, 35);
-        startQuestionButton.Text = "開始題目";
-        startQuestionButton.UseVisualStyleBackColor = true;
-        startQuestionButton.Click += startQuestionButton_Click;
-        closeQuestionButton.Enabled = false;
-        closeQuestionButton.Location = new Point(135, 65);
-        closeQuestionButton.Name = "closeQuestionButton";
-        closeQuestionButton.Size = new Size(110, 35);
-        closeQuestionButton.Text = "關閉作答";
-        closeQuestionButton.UseVisualStyleBackColor = true;
-        closeQuestionButton.Click += closeQuestionButton_Click;
-        revealAnswerButton.Enabled = false;
-        revealAnswerButton.Location = new Point(255, 65);
-        revealAnswerButton.Name = "revealAnswerButton";
-        revealAnswerButton.Size = new Size(130, 35);
-        revealAnswerButton.Text = "公布正確答案";
-        revealAnswerButton.UseVisualStyleBackColor = true;
-        revealAnswerButton.Click += revealAnswerButton_Click;
-        quizLeaderboardLabel.AutoSize = true;
-        quizLeaderboardLabel.Location = new Point(15, 285);
-        quizLeaderboardLabel.Name = "quizLeaderboardLabel";
-        quizLeaderboardLabel.Text = "排行榜 Top 10";
-        quizLeaderboardGrid.AllowUserToAddRows = false;
-        quizLeaderboardGrid.AllowUserToDeleteRows = false;
-        quizLeaderboardGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        quizLeaderboardGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        quizLeaderboardGrid.Columns.AddRange(new DataGridViewColumn[] { rankColumn, leaderboardNameColumn, totalScoreColumn, correctCountColumn, answeredCountColumn });
-        quizLeaderboardGrid.Location = new Point(15, 310);
-        quizLeaderboardGrid.Name = "quizLeaderboardGrid";
-        quizLeaderboardGrid.ReadOnly = true;
-        quizLeaderboardGrid.RowHeadersVisible = false;
-        quizLeaderboardGrid.Size = new Size(785, 145);
-        quizLeaderboardGrid.TabIndex = 21;
-        rankColumn.HeaderText = "名次";
-        rankColumn.Name = "rankColumn";
-        rankColumn.ReadOnly = true;
-        leaderboardNameColumn.HeaderText = "顯示名稱";
-        leaderboardNameColumn.Name = "leaderboardNameColumn";
-        leaderboardNameColumn.ReadOnly = true;
-        totalScoreColumn.HeaderText = "總分";
-        totalScoreColumn.Name = "totalScoreColumn";
-        totalScoreColumn.ReadOnly = true;
-        correctCountColumn.HeaderText = "答對";
-        correctCountColumn.Name = "correctCountColumn";
-        correctCountColumn.ReadOnly = true;
-        answeredCountColumn.HeaderText = "作答";
-        answeredCountColumn.Name = "answeredCountColumn";
-        answeredCountColumn.ReadOnly = true;
-        //
-        // questionBankGroupBox
-        //
-        questionBankGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        questionBankGroupBox.Controls.Add(importCsvButton);
-        questionBankGroupBox.Controls.Add(exportTemplateButton);
-        questionBankGroupBox.Controls.Add(refreshQuestionBanksButton);
-        questionBankGroupBox.Controls.Add(questionBankComboBox);
-        questionBankGroupBox.Controls.Add(previousQuestionButton);
-        questionBankGroupBox.Controls.Add(nextQuestionButton);
-        questionBankGroupBox.Controls.Add(startQuestionButton);
-        questionBankGroupBox.Controls.Add(closeQuestionButton);
-        questionBankGroupBox.Controls.Add(revealAnswerButton);
-        questionBankGroupBox.Controls.Add(questionBankActionHintLabel);
-        questionBankGroupBox.Controls.Add(questionBankGrid);
-        questionBankGroupBox.Controls.Add(questionBankDetailTextBox);
-        questionBankGroupBox.Location = new Point(20, 635);
-        questionBankGroupBox.Name = "questionBankGroupBox";
-        questionBankGroupBox.Size = new Size(825, 420);
-        questionBankGroupBox.Text = "正式題庫（CSV 匯入）";
-        importCsvButton.Location = new Point(15, 25);
-        importCsvButton.Name = "importCsvButton";
-        importCsvButton.Size = new Size(105, 30);
-        importCsvButton.Text = "匯入 CSV";
-        importCsvButton.UseVisualStyleBackColor = true;
-        importCsvButton.Click += importCsvButton_Click;
-        exportTemplateButton.Location = new Point(130, 25);
-        exportTemplateButton.Name = "exportTemplateButton";
-        exportTemplateButton.Size = new Size(105, 30);
-        exportTemplateButton.Text = "匯出範本";
-        exportTemplateButton.UseVisualStyleBackColor = true;
-        exportTemplateButton.Click += exportTemplateButton_Click;
-        refreshQuestionBanksButton.Location = new Point(245, 25);
-        refreshQuestionBanksButton.Name = "refreshQuestionBanksButton";
-        refreshQuestionBanksButton.Size = new Size(80, 30);
-        refreshQuestionBanksButton.Text = "重新整理";
-        refreshQuestionBanksButton.UseVisualStyleBackColor = true;
-        refreshQuestionBanksButton.Click += refreshQuestionBanksButton_Click;
-        questionBankComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        questionBankComboBox.Location = new Point(340, 29);
-        questionBankComboBox.Name = "questionBankComboBox";
-        questionBankComboBox.Size = new Size(250, 23);
-        questionBankComboBox.SelectedIndexChanged += questionBankComboBox_SelectedIndexChanged;
-        previousQuestionButton.Location = new Point(610, 25);
-        previousQuestionButton.Name = "previousQuestionButton";
-        previousQuestionButton.Size = new Size(85, 30);
-        previousQuestionButton.Text = "上一題";
-        previousQuestionButton.UseVisualStyleBackColor = true;
-        previousQuestionButton.Click += previousQuestionButton_Click;
-        nextQuestionButton.Location = new Point(705, 25);
-        nextQuestionButton.Name = "nextQuestionButton";
-        nextQuestionButton.Size = new Size(85, 30);
-        nextQuestionButton.Text = "下一題";
-        nextQuestionButton.UseVisualStyleBackColor = true;
-        nextQuestionButton.Click += nextQuestionButton_Click;
-        questionBankGrid.AllowUserToAddRows = false;
-        questionBankGrid.AllowUserToDeleteRows = false;
-        questionBankGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        questionBankGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
-        questionBankGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-        questionBankGrid.Columns.AddRange(
-            new DataGridViewTextBoxColumn { HeaderText = "順序", FillWeight = 45 },
-            new DataGridViewTextBoxColumn { HeaderText = "Key", FillWeight = 75 },
-            new DataGridViewTextBoxColumn { HeaderText = "分類", FillWeight = 70 },
-            new DataGridViewTextBoxColumn { HeaderText = "難度", FillWeight = 55 },
-            new DataGridViewTextBoxColumn { HeaderText = "題目", FillWeight = 230 },
-            new DataGridViewTextBoxColumn { HeaderText = "秒數", FillWeight = 45 },
-            new DataGridViewTextBoxColumn { HeaderText = "狀態", FillWeight = 65 });
-        questionBankActionHintLabel.AutoEllipsis = true;
-        questionBankActionHintLabel.Location = new Point(405, 74);
-        questionBankActionHintLabel.Name = "questionBankActionHintLabel";
-        questionBankActionHintLabel.Size = new Size(395, 22);
-        questionBankActionHintLabel.Text = "選題後：開始題目 → 關閉作答 → 公布正確答案";
-        questionBankGrid.Location = new Point(15, 110);
-        questionBankGrid.MultiSelect = false;
-        questionBankGrid.Name = "questionBankGrid";
-        questionBankGrid.ReadOnly = true;
-        questionBankGrid.RowHeadersVisible = false;
-        questionBankGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        questionBankGrid.Size = new Size(785, 175);
-        questionBankGrid.SelectionChanged += questionBankGrid_SelectionChanged;
-        questionBankDetailTextBox.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        questionBankDetailTextBox.Location = new Point(15, 300);
-        questionBankDetailTextBox.Multiline = true;
-        questionBankDetailTextBox.Name = "questionBankDetailTextBox";
-        questionBankDetailTextBox.ReadOnly = true;
-        questionBankDetailTextBox.ScrollBars = ScrollBars.Vertical;
-        questionBankDetailTextBox.Size = new Size(785, 100);
-        questionBankDetailTextBox.Text = "選擇題目後顯示 A／B／C／D、正確答案、秒數與狀態。";
-        //
-        // HostDashboardForm
-        //
+        shellTableLayoutPanel.Name = "shellTableLayoutPanel";
+        navigationPanel.Name = "navigationPanel";
+        brandLabel.Name = "brandLabel";
+        dashboardNavigationButton.Name = "dashboardNavigationButton";
+        eventNavigationButton.Name = "eventNavigationButton";
+        questionBankNavigationButton.Name = "questionBankNavigationButton";
+        quizNavigationButton.Name = "quizNavigationButton";
+        resultsNavigationButton.Name = "resultsNavigationButton";
+        displayNavigationButton.Name = "displayNavigationButton";
+        headerPanel.Name = "headerPanel";
+        currentEventHeaderLabel.Name = "currentEventHeaderLabel";
+        currentQuizHeaderLabel.Name = "currentQuizHeaderLabel";
+        participantHeaderLabel.Name = "participantHeaderLabel";
+        serverHeaderLabel.Name = "serverHeaderLabel";
+        displayHeaderLabel.Name = "displayHeaderLabel";
+        contentPanel.Name = "contentPanel";
+        dashboardView.Name = "dashboardView";
+        eventManagementView.Name = "eventManagementView";
+        questionBankView.Name = "questionBankView";
+        quizControlView.Name = "quizControlView";
+        quizResultView.Name = "quizResultView";
+        displayControlView.Name = "displayControlView";
+        shellTableLayoutPanel.ColumnCount = 2;
+        shellTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 190F));
+        shellTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
+        shellTableLayoutPanel.Controls.Add(navigationPanel, 0, 0);
+        shellTableLayoutPanel.SetRowSpan(navigationPanel, 2);
+        shellTableLayoutPanel.Controls.Add(headerPanel, 1, 0);
+        shellTableLayoutPanel.Controls.Add(contentPanel, 1, 1);
+        shellTableLayoutPanel.Dock = DockStyle.Fill;
+        shellTableLayoutPanel.RowCount = 2;
+        shellTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 88F));
+        shellTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        navigationPanel.BackColor = Color.FromArgb(22, 43, 65);
+        navigationPanel.Controls.Add(displayNavigationButton);
+        navigationPanel.Controls.Add(resultsNavigationButton);
+        navigationPanel.Controls.Add(quizNavigationButton);
+        navigationPanel.Controls.Add(questionBankNavigationButton);
+        navigationPanel.Controls.Add(eventNavigationButton);
+        navigationPanel.Controls.Add(dashboardNavigationButton);
+        navigationPanel.Controls.Add(brandLabel);
+        navigationPanel.Dock = DockStyle.Fill;
+        brandLabel.Dock = DockStyle.Top;
+        brandLabel.Font = new Font("Microsoft JhengHei UI", 16F, FontStyle.Bold);
+        brandLabel.ForeColor = Color.White;
+        brandLabel.Height = 88;
+        brandLabel.Padding = new Padding(18, 24, 0, 0);
+        brandLabel.Text = "EventHub";
+        ConfigureNavigationButton(dashboardNavigationButton, "Dashboard", 88, HostView.Dashboard);
+        ConfigureNavigationButton(eventNavigationButton, "Event", 142, HostView.Event);
+        ConfigureNavigationButton(questionBankNavigationButton, "Question Bank", 196, HostView.QuestionBank);
+        ConfigureNavigationButton(quizNavigationButton, "Quiz Control", 250, HostView.Quiz);
+        ConfigureNavigationButton(resultsNavigationButton, "Results", 304, HostView.Results);
+        ConfigureNavigationButton(displayNavigationButton, "Display", 358, HostView.Display);
+        headerPanel.BackColor = Color.White;
+        headerPanel.Controls.Add(currentEventHeaderLabel);
+        headerPanel.Controls.Add(currentQuizHeaderLabel);
+        headerPanel.Controls.Add(participantHeaderLabel);
+        headerPanel.Controls.Add(serverHeaderLabel);
+        headerPanel.Controls.Add(displayHeaderLabel);
+        headerPanel.Dock = DockStyle.Fill;
+        currentEventHeaderLabel.AutoEllipsis = true;
+        currentEventHeaderLabel.Font = new Font("Microsoft JhengHei UI", 14F, FontStyle.Bold);
+        currentEventHeaderLabel.Location = new Point(24, 16);
+        currentEventHeaderLabel.Size = new Size(430, 30);
+        currentEventHeaderLabel.Text = "Current Event：尚未選擇";
+        currentQuizHeaderLabel.AutoEllipsis = true;
+        currentQuizHeaderLabel.Location = new Point(24, 50);
+        currentQuizHeaderLabel.Size = new Size(430, 24);
+        currentQuizHeaderLabel.Text = "Quiz：尚未選擇";
+        participantHeaderLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        participantHeaderLabel.Location = new Point(486, 20);
+        participantHeaderLabel.Size = new Size(125, 24);
+        participantHeaderLabel.Text = "Participants 0";
+        serverHeaderLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        serverHeaderLabel.ForeColor = Color.Firebrick;
+        serverHeaderLabel.Location = new Point(620, 20);
+        serverHeaderLabel.Size = new Size(150, 24);
+        serverHeaderLabel.Text = "● Server Disconnected";
+        displayHeaderLabel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        displayHeaderLabel.Location = new Point(780, 20);
+        displayHeaderLabel.Size = new Size(130, 24);
+        displayHeaderLabel.Text = "Display: Waiting";
+        contentPanel.BackColor = Color.FromArgb(244, 247, 250);
+        contentPanel.Controls.Add(displayControlView);
+        contentPanel.Controls.Add(quizResultView);
+        contentPanel.Controls.Add(quizControlView);
+        contentPanel.Controls.Add(questionBankView);
+        contentPanel.Controls.Add(eventManagementView);
+        contentPanel.Controls.Add(dashboardView);
+        contentPanel.Dock = DockStyle.Fill;
+        dashboardView.Dock = DockStyle.Fill;
+        eventManagementView.Dock = DockStyle.Fill;
+        eventManagementView.Visible = false;
+        questionBankView.Dock = DockStyle.Fill;
+        questionBankView.Visible = false;
+        quizControlView.Dock = DockStyle.Fill;
+        quizControlView.Visible = false;
+        quizResultView.Dock = DockStyle.Fill;
+        quizResultView.Visible = false;
+        displayControlView.Dock = DockStyle.Fill;
+        displayControlView.Visible = false;
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
-        AutoScroll = true;
-        ClientSize = new Size(865, 900);
-        Controls.Add(questionBankGroupBox);
-        Controls.Add(quizGroupBox);
-        Controls.Add(participantGrid);
-        Controls.Add(displayControlGroupBox);
-        Controls.Add(joinInfoGroupBox);
-        Controls.Add(onlineCountLabel);
-        Controls.Add(statusLabel);
-        Controls.Add(connectButton);
-        Controls.Add(hostTokenTextBox);
-        Controls.Add(hostTokenLabel);
-        Controls.Add(eventIdTextBox);
-        Controls.Add(eventIdLabel);
-        Controls.Add(createEventButton);
-        Controls.Add(eventDatePicker);
-        Controls.Add(eventDateLabel);
-        Controls.Add(eventNameTextBox);
-        Controls.Add(eventNameLabel);
-        Controls.Add(serverUrlTextBox);
-        Controls.Add(serverUrlLabel);
-        MinimumSize = new Size(760, 680);
+        ClientSize = new Size(1180, 820);
+        Controls.Add(shellTableLayoutPanel);
+        MinimumSize = new Size(1024, 700);
         Name = "HostDashboardForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "EventHub Host Console";
         FormClosed += HostDashboardForm_FormClosed;
-        joinInfoGroupBox.ResumeLayout(false);
-        joinInfoGroupBox.PerformLayout();
-        ((System.ComponentModel.ISupportInitialize)joinQrCodePictureBox).EndInit();
-        displayControlGroupBox.ResumeLayout(false);
-        displayControlGroupBox.PerformLayout();
-        ((System.ComponentModel.ISupportInitialize)participantGrid).EndInit();
-        questionBankGroupBox.ResumeLayout(false);
-        ((System.ComponentModel.ISupportInitialize)questionBankGrid).EndInit();
-        quizGroupBox.ResumeLayout(false);
-        quizGroupBox.PerformLayout();
-        ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).EndInit();
-        ((System.ComponentModel.ISupportInitialize)quizLeaderboardGrid).EndInit();
+        shellTableLayoutPanel.ResumeLayout(false);
+        navigationPanel.ResumeLayout(false);
+        headerPanel.ResumeLayout(false);
+        contentPanel.ResumeLayout(false);
         ResumeLayout(false);
-        PerformLayout();
     }
 
-    #endregion
+    private void ConfigureNavigationButton(Button button, string text, int top, HostView view)
+    {
+        button.BackColor = Color.FromArgb(22, 43, 65);
+        button.FlatAppearance.BorderSize = 0;
+        button.FlatStyle = FlatStyle.Flat;
+        button.Font = new Font("Microsoft JhengHei UI", 10F, FontStyle.Bold);
+        button.ForeColor = Color.WhiteSmoke;
+        button.Location = new Point(0, top);
+        button.Padding = new Padding(18, 0, 0, 0);
+        button.Size = new Size(190, 54);
+        button.Tag = view;
+        button.Text = text;
+        button.TextAlign = ContentAlignment.MiddleLeft;
+        button.UseVisualStyleBackColor = false;
+        button.Click += navigationButton_Click;
+    }
 
-    private Label serverUrlLabel;
-    private TextBox serverUrlTextBox;
-    private Label eventNameLabel;
-    private TextBox eventNameTextBox;
-    private Label eventDateLabel;
-    private DateTimePicker eventDatePicker;
-    private Button createEventButton;
-    private Label eventIdLabel;
-    private TextBox eventIdTextBox;
-    private Label hostTokenLabel;
-    private TextBox hostTokenTextBox;
-    private Button connectButton;
-    private Label statusLabel;
-    private Label onlineCountLabel;
-    private GroupBox joinInfoGroupBox;
-    private Label joinEventNameLabel;
-    private Label joinCodeTitleLabel;
-    private Label joinCodeValueLabel;
-    private TextBox joinUrlTextBox;
-    private Button copyJoinUrlButton;
-    private Label joinUrlWarningLabel;
-    private PictureBox joinQrCodePictureBox;
-    private GroupBox displayControlGroupBox;
-    private Label displayModeValueLabel;
-    private Button showWaitingButton;
-    private Button showQuestionButton;
-    private Button showResultButton;
-    private Button showLeaderboardButton;
-    private DataGridView participantGrid;
-    private DataGridViewTextBoxColumn nameColumn;
-    private DataGridViewTextBoxColumn employeeNumberColumn;
-    private DataGridViewTextBoxColumn departmentColumn;
-    private DataGridViewTextBoxColumn tableNumberColumn;
-    private DataGridViewTextBoxColumn onlineColumn;
-    private DataGridViewTextBoxColumn scoreColumn;
-    private GroupBox questionBankGroupBox;
-    private Button importCsvButton;
-    private Button exportTemplateButton;
-    private Button refreshQuestionBanksButton;
-    private ComboBox questionBankComboBox;
-    private Button previousQuestionButton;
-    private Button nextQuestionButton;
-    private DataGridView questionBankGrid;
-    private TextBox questionBankDetailTextBox;
-    private Label questionBankActionHintLabel;
-    private GroupBox quizGroupBox;
-    private Label questionTextLabel;
-    private TextBox questionTextBox;
-    private Label optionALabel;
-    private TextBox optionATextBox;
-    private Label optionBLabel;
-    private TextBox optionBTextBox;
-    private Label optionCLabel;
-    private TextBox optionCTextBox;
-    private Label optionDLabel;
-    private TextBox optionDTextBox;
-    private Label correctOptionLabel;
-    private ComboBox correctOptionComboBox;
-    private Label answerDurationLabel;
-    private NumericUpDown answerDurationNumeric;
-    private Button createQuestionButton;
-    private Label currentQuestionLabel;
-    private Label quizStateLabel;
-    private Label quizProgressLabel;
-    private Button startQuestionButton;
-    private Button closeQuestionButton;
-    private Button revealAnswerButton;
-    private Label quizResultLabel;
-    private Label quizLeaderboardLabel;
-    private DataGridView quizLeaderboardGrid;
-    private DataGridViewTextBoxColumn rankColumn;
-    private DataGridViewTextBoxColumn leaderboardNameColumn;
-    private DataGridViewTextBoxColumn totalScoreColumn;
-    private DataGridViewTextBoxColumn correctCountColumn;
-    private DataGridViewTextBoxColumn answeredCountColumn;
+    private TableLayoutPanel shellTableLayoutPanel;
+    private Panel navigationPanel;
+    private Label brandLabel;
+    private Button dashboardNavigationButton;
+    private Button eventNavigationButton;
+    private Button questionBankNavigationButton;
+    private Button quizNavigationButton;
+    private Button resultsNavigationButton;
+    private Button displayNavigationButton;
+    private Panel headerPanel;
+    private Label currentEventHeaderLabel;
+    private Label currentQuizHeaderLabel;
+    private Label participantHeaderLabel;
+    private Label serverHeaderLabel;
+    private Label displayHeaderLabel;
+    private Panel contentPanel;
+    private DashboardView dashboardView;
+    private EventManagementView eventManagementView;
+    private QuestionBankView questionBankView;
+    private QuizControlView quizControlView;
+    private QuizResultView quizResultView;
+    private DisplayControlView displayControlView;
 }

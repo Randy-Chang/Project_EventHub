@@ -5,7 +5,9 @@ internal partial class QuestionBankImportPreviewForm : Form
     public QuestionBankImportPreviewForm(QuestionBankPreviewView preview)
     {
         InitializeComponent();
-        summaryLabel.Text = $"題庫：{preview.QuizTitle ?? "未識別"}　題數：{preview.QuestionCount}　錯誤：{preview.ErrorCount}　警告：{preview.WarningCount}";
+        fileNameValueLabel.Text = preview.FileName;
+        summaryLabel.Text =
+            $"題庫：{preview.QuizTitle ?? "未識別"}　題數：{preview.QuestionCount}　錯誤：{preview.ErrorCount}　警告：{preview.WarningCount}";
         foreach (var row in preview.Rows.OrderBy(row => row.Order))
         {
             questionGrid.Rows.Add(
