@@ -15,6 +15,9 @@ public sealed class QuizRepository(EventHubDbContext dbContext) : IQuizRepositor
             .FirstOrDefaultAsync(quiz => quiz.EventId == eventId, cancellationToken);
     }
 
+    public Task<Quiz?> GetQuizAsync(Guid quizId, CancellationToken cancellationToken) =>
+        dbContext.Quizzes.SingleOrDefaultAsync(quiz => quiz.Id == quizId, cancellationToken);
+
     public async Task AddQuizAsync(Quiz quiz, CancellationToken cancellationToken)
     {
         dbContext.Quizzes.Add(quiz);

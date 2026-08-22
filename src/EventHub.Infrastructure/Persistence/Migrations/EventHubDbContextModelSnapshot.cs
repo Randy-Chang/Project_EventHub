@@ -283,11 +283,13 @@ namespace EventHub.Infrastructure.Persistence.Migrations
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
+                        .UseCollation("NOCASE")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EventId");
+                    b.HasIndex("EventId", "Title")
+                        .IsUnique();
 
                     b.ToTable("Quizzes", (string)null);
                 });
@@ -326,6 +328,10 @@ namespace EventHub.Infrastructure.Persistence.Migrations
                     b.Property<long>("AnswerDuration")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Category")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("CorrectOptionId")
                         .HasColumnType("TEXT");
 
@@ -333,6 +339,17 @@ namespace EventHub.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<Guid>("QuizId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Difficulty")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("QuestionKey")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .UseCollation("NOCASE")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Text")
@@ -343,6 +360,9 @@ namespace EventHub.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("QuizId", "Order")
+                        .IsUnique();
+
+                    b.HasIndex("QuizId", "QuestionKey")
                         .IsUnique();
 
                     b.ToTable("QuizQuestions", (string)null);

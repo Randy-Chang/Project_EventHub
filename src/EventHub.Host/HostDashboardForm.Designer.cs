@@ -54,6 +54,16 @@ partial class HostDashboardForm
         tableNumberColumn = new DataGridViewTextBoxColumn();
         onlineColumn = new DataGridViewTextBoxColumn();
         scoreColumn = new DataGridViewTextBoxColumn();
+        questionBankGroupBox = new GroupBox();
+        importCsvButton = new Button();
+        exportTemplateButton = new Button();
+        refreshQuestionBanksButton = new Button();
+        questionBankComboBox = new ComboBox();
+        previousQuestionButton = new Button();
+        nextQuestionButton = new Button();
+        questionBankGrid = new DataGridView();
+        questionBankDetailTextBox = new TextBox();
+        questionBankActionHintLabel = new Label();
         quizGroupBox = new GroupBox();
         questionTextLabel = new Label();
         questionTextBox = new TextBox();
@@ -88,6 +98,8 @@ partial class HostDashboardForm
         ((System.ComponentModel.ISupportInitialize)joinQrCodePictureBox).BeginInit();
         displayControlGroupBox.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)participantGrid).BeginInit();
+        questionBankGroupBox.SuspendLayout();
+        ((System.ComponentModel.ISupportInitialize)questionBankGrid).BeginInit();
         quizGroupBox.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).BeginInit();
         ((System.ComponentModel.ISupportInitialize)quizLeaderboardGrid).BeginInit();
@@ -353,7 +365,7 @@ partial class HostDashboardForm
         //
         // quizGroupBox
         //
-        quizGroupBox.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        quizGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         quizGroupBox.Controls.Add(questionTextLabel);
         quizGroupBox.Controls.Add(questionTextBox);
         quizGroupBox.Controls.Add(optionALabel);
@@ -372,13 +384,10 @@ partial class HostDashboardForm
         quizGroupBox.Controls.Add(currentQuestionLabel);
         quizGroupBox.Controls.Add(quizStateLabel);
         quizGroupBox.Controls.Add(quizProgressLabel);
-        quizGroupBox.Controls.Add(startQuestionButton);
-        quizGroupBox.Controls.Add(closeQuestionButton);
-        quizGroupBox.Controls.Add(revealAnswerButton);
         quizGroupBox.Controls.Add(quizResultLabel);
         quizGroupBox.Controls.Add(quizLeaderboardLabel);
         quizGroupBox.Controls.Add(quizLeaderboardGrid);
-        quizGroupBox.Location = new Point(20, 635);
+        quizGroupBox.Location = new Point(20, 1070);
         quizGroupBox.Name = "quizGroupBox";
         quizGroupBox.Size = new Size(825, 475);
         quizGroupBox.TabIndex = 16;
@@ -473,21 +482,21 @@ partial class HostDashboardForm
         quizResultLabel.Location = new Point(15, 210);
         quizResultLabel.Name = "quizResultLabel";
         quizResultLabel.Text = "結果：等待公布答案";
-        startQuestionButton.Location = new Point(430, 230);
+        startQuestionButton.Location = new Point(15, 65);
         startQuestionButton.Name = "startQuestionButton";
         startQuestionButton.Size = new Size(110, 35);
         startQuestionButton.Text = "開始題目";
         startQuestionButton.UseVisualStyleBackColor = true;
         startQuestionButton.Click += startQuestionButton_Click;
         closeQuestionButton.Enabled = false;
-        closeQuestionButton.Location = new Point(550, 230);
+        closeQuestionButton.Location = new Point(135, 65);
         closeQuestionButton.Name = "closeQuestionButton";
         closeQuestionButton.Size = new Size(110, 35);
         closeQuestionButton.Text = "關閉作答";
         closeQuestionButton.UseVisualStyleBackColor = true;
         closeQuestionButton.Click += closeQuestionButton_Click;
         revealAnswerButton.Enabled = false;
-        revealAnswerButton.Location = new Point(670, 230);
+        revealAnswerButton.Location = new Point(255, 65);
         revealAnswerButton.Name = "revealAnswerButton";
         revealAnswerButton.Size = new Size(130, 35);
         revealAnswerButton.Text = "公布正確答案";
@@ -524,12 +533,102 @@ partial class HostDashboardForm
         answeredCountColumn.Name = "answeredCountColumn";
         answeredCountColumn.ReadOnly = true;
         //
+        // questionBankGroupBox
+        //
+        questionBankGroupBox.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        questionBankGroupBox.Controls.Add(importCsvButton);
+        questionBankGroupBox.Controls.Add(exportTemplateButton);
+        questionBankGroupBox.Controls.Add(refreshQuestionBanksButton);
+        questionBankGroupBox.Controls.Add(questionBankComboBox);
+        questionBankGroupBox.Controls.Add(previousQuestionButton);
+        questionBankGroupBox.Controls.Add(nextQuestionButton);
+        questionBankGroupBox.Controls.Add(startQuestionButton);
+        questionBankGroupBox.Controls.Add(closeQuestionButton);
+        questionBankGroupBox.Controls.Add(revealAnswerButton);
+        questionBankGroupBox.Controls.Add(questionBankActionHintLabel);
+        questionBankGroupBox.Controls.Add(questionBankGrid);
+        questionBankGroupBox.Controls.Add(questionBankDetailTextBox);
+        questionBankGroupBox.Location = new Point(20, 635);
+        questionBankGroupBox.Name = "questionBankGroupBox";
+        questionBankGroupBox.Size = new Size(825, 420);
+        questionBankGroupBox.Text = "正式題庫（CSV 匯入）";
+        importCsvButton.Location = new Point(15, 25);
+        importCsvButton.Name = "importCsvButton";
+        importCsvButton.Size = new Size(105, 30);
+        importCsvButton.Text = "匯入 CSV";
+        importCsvButton.UseVisualStyleBackColor = true;
+        importCsvButton.Click += importCsvButton_Click;
+        exportTemplateButton.Location = new Point(130, 25);
+        exportTemplateButton.Name = "exportTemplateButton";
+        exportTemplateButton.Size = new Size(105, 30);
+        exportTemplateButton.Text = "匯出範本";
+        exportTemplateButton.UseVisualStyleBackColor = true;
+        exportTemplateButton.Click += exportTemplateButton_Click;
+        refreshQuestionBanksButton.Location = new Point(245, 25);
+        refreshQuestionBanksButton.Name = "refreshQuestionBanksButton";
+        refreshQuestionBanksButton.Size = new Size(80, 30);
+        refreshQuestionBanksButton.Text = "重新整理";
+        refreshQuestionBanksButton.UseVisualStyleBackColor = true;
+        refreshQuestionBanksButton.Click += refreshQuestionBanksButton_Click;
+        questionBankComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        questionBankComboBox.Location = new Point(340, 29);
+        questionBankComboBox.Name = "questionBankComboBox";
+        questionBankComboBox.Size = new Size(250, 23);
+        questionBankComboBox.SelectedIndexChanged += questionBankComboBox_SelectedIndexChanged;
+        previousQuestionButton.Location = new Point(610, 25);
+        previousQuestionButton.Name = "previousQuestionButton";
+        previousQuestionButton.Size = new Size(85, 30);
+        previousQuestionButton.Text = "上一題";
+        previousQuestionButton.UseVisualStyleBackColor = true;
+        previousQuestionButton.Click += previousQuestionButton_Click;
+        nextQuestionButton.Location = new Point(705, 25);
+        nextQuestionButton.Name = "nextQuestionButton";
+        nextQuestionButton.Size = new Size(85, 30);
+        nextQuestionButton.Text = "下一題";
+        nextQuestionButton.UseVisualStyleBackColor = true;
+        nextQuestionButton.Click += nextQuestionButton_Click;
+        questionBankGrid.AllowUserToAddRows = false;
+        questionBankGrid.AllowUserToDeleteRows = false;
+        questionBankGrid.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        questionBankGrid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        questionBankGrid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        questionBankGrid.Columns.AddRange(
+            new DataGridViewTextBoxColumn { HeaderText = "順序", FillWeight = 45 },
+            new DataGridViewTextBoxColumn { HeaderText = "Key", FillWeight = 75 },
+            new DataGridViewTextBoxColumn { HeaderText = "分類", FillWeight = 70 },
+            new DataGridViewTextBoxColumn { HeaderText = "難度", FillWeight = 55 },
+            new DataGridViewTextBoxColumn { HeaderText = "題目", FillWeight = 230 },
+            new DataGridViewTextBoxColumn { HeaderText = "秒數", FillWeight = 45 },
+            new DataGridViewTextBoxColumn { HeaderText = "狀態", FillWeight = 65 });
+        questionBankActionHintLabel.AutoEllipsis = true;
+        questionBankActionHintLabel.Location = new Point(405, 74);
+        questionBankActionHintLabel.Name = "questionBankActionHintLabel";
+        questionBankActionHintLabel.Size = new Size(395, 22);
+        questionBankActionHintLabel.Text = "選題後：開始題目 → 關閉作答 → 公布正確答案";
+        questionBankGrid.Location = new Point(15, 110);
+        questionBankGrid.MultiSelect = false;
+        questionBankGrid.Name = "questionBankGrid";
+        questionBankGrid.ReadOnly = true;
+        questionBankGrid.RowHeadersVisible = false;
+        questionBankGrid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        questionBankGrid.Size = new Size(785, 175);
+        questionBankGrid.SelectionChanged += questionBankGrid_SelectionChanged;
+        questionBankDetailTextBox.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        questionBankDetailTextBox.Location = new Point(15, 300);
+        questionBankDetailTextBox.Multiline = true;
+        questionBankDetailTextBox.Name = "questionBankDetailTextBox";
+        questionBankDetailTextBox.ReadOnly = true;
+        questionBankDetailTextBox.ScrollBars = ScrollBars.Vertical;
+        questionBankDetailTextBox.Size = new Size(785, 100);
+        questionBankDetailTextBox.Text = "選擇題目後顯示 A／B／C／D、正確答案、秒數與狀態。";
+        //
         // HostDashboardForm
         //
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         AutoScroll = true;
-        ClientSize = new Size(865, 1130);
+        ClientSize = new Size(865, 900);
+        Controls.Add(questionBankGroupBox);
         Controls.Add(quizGroupBox);
         Controls.Add(participantGrid);
         Controls.Add(displayControlGroupBox);
@@ -548,7 +647,7 @@ partial class HostDashboardForm
         Controls.Add(eventNameLabel);
         Controls.Add(serverUrlTextBox);
         Controls.Add(serverUrlLabel);
-        MinimumSize = new Size(760, 890);
+        MinimumSize = new Size(760, 680);
         Name = "HostDashboardForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "EventHub Host Console";
@@ -559,6 +658,8 @@ partial class HostDashboardForm
         displayControlGroupBox.ResumeLayout(false);
         displayControlGroupBox.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)participantGrid).EndInit();
+        questionBankGroupBox.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)questionBankGrid).EndInit();
         quizGroupBox.ResumeLayout(false);
         quizGroupBox.PerformLayout();
         ((System.ComponentModel.ISupportInitialize)answerDurationNumeric).EndInit();
@@ -604,6 +705,16 @@ partial class HostDashboardForm
     private DataGridViewTextBoxColumn tableNumberColumn;
     private DataGridViewTextBoxColumn onlineColumn;
     private DataGridViewTextBoxColumn scoreColumn;
+    private GroupBox questionBankGroupBox;
+    private Button importCsvButton;
+    private Button exportTemplateButton;
+    private Button refreshQuestionBanksButton;
+    private ComboBox questionBankComboBox;
+    private Button previousQuestionButton;
+    private Button nextQuestionButton;
+    private DataGridView questionBankGrid;
+    private TextBox questionBankDetailTextBox;
+    private Label questionBankActionHintLabel;
     private GroupBox quizGroupBox;
     private Label questionTextLabel;
     private TextBox questionTextBox;

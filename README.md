@@ -19,6 +19,8 @@ EventHub 是以公司尾牙、春酒、家庭日與一般企業活動為目標�
 
 第一次使用或忘記操作流程時，請見 [EventHub 使用說明書](docs/USER_GUIDE.md)。
 
+需要測試手機與主持人電腦的區域網路連線時，請見 [電腦與手機區域網路測試指南](docs/LAN_TEST_GUIDE.md)。
+
 ## 專案結構
 
 ```text
@@ -112,3 +114,20 @@ SQLite 預設位於 `src/EventHub.Server/Data/eventhub.db`（相對於 Server Co
 - Wi-Fi AP 不可啟用 Client Isolation，手機與 Host 必須能互相連線。
 - 正式活動前應以實際手機、Wi-Fi 與預估同時人數完成演練。
 - 第一版 LAN HTTP 適用於受信任的封閉網路；若保存敏感個資，應配置 HTTPS。
+
+## CSV 題庫匯入
+
+Host 連線到活動後，可在「正式題庫（CSV 匯入）」區使用「匯出範本」取得 UTF-8 BOM 範本，或參考 [`samples/QuizQuestionBankSample.csv`](samples/QuizQuestionBankSample.csv)。
+
+正式欄位為：
+
+```text
+QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds
+```
+
+- 一個 CSV 只能有一個 `QuizTitle`，同活動不可匯入同名題庫。
+- `QuestionKey` 與 `Order` 在同一題庫內不可重複。
+- `Difficulty` 僅接受 `Easy`、`Medium`、`Hard`，目前不影響計分。
+- `CorrectOption` 僅接受 `A`～`D`，作答秒數須為 5～120。
+- 檔案必須是 UTF-8、最大 5 MB、最多 500 題。
+- 預覽有任何錯誤時不會寫入資料；按下確認後 Server 仍會重新驗證，整批成功或整批回滾。

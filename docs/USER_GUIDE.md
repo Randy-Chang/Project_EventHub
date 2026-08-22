@@ -4,6 +4,8 @@
 
 > 最容易忘記的重點：VS2022 的 `http` Profile（`localhost:5029`）只供同一台電腦測試。活動當天請使用 `Local Event` Profile 或 LAN 啟動命令，並把 `JoinBaseUrl` 設成活動主機的實際 IPv4；手機不能連 localhost。
 
+需要逐步驗證電腦、Windows 防火牆、手機、Host 與 Display 時，請另見 [電腦與手機區域網路測試指南](LAN_TEST_GUIDE.md)。
+
 ## 1. 目前可以使用的功能
 
 - Host 建立活動。
@@ -396,3 +398,14 @@ Host Console 不會自動猜測 Server Port。請以 Server Console 的 `Now lis
 → Host 關閉作答
 → Host 公布正確答案
 ```
+
+## 12. 正式題庫 CSV
+
+1. Host 完成活動連線後，找到「正式題庫（CSV 匯入）」區域。
+2. 第一次使用先按「匯出範本」，請用 Excel 或文字編輯器填寫，但儲存時必須選 UTF-8 CSV。
+3. 按「匯入 CSV」選檔，先檢查預覽中的題目與驗證訊息。
+4. 有錯誤時「確認匯入」會停用；修正 CSV 後重新選檔。
+5. 驗證通過後按「確認匯入」。匯入完成即可從題庫下拉選單選擇題目。
+6. 選題後按「開始題目」；每題必須依序完成「開始 → 關閉作答 → 公布答案」，才能切換下一題。
+
+完整欄位與限制請參考 Repository 根目錄的 `README.md`，可直接測試 `samples/QuizQuestionBankSample.csv`。

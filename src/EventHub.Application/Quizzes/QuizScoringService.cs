@@ -110,7 +110,7 @@ public sealed class QuizScoringService(
         int top,
         CancellationToken cancellationToken)
     {
-        var quiz = await quizRepository.GetByEventAsync(eventId, cancellationToken);
+        var quiz = await GetActiveQuizAsync(eventId, cancellationToken);
         if (quiz is null)
         {
             return new QuizLeaderboard(eventId, null, []);
@@ -131,7 +131,7 @@ public sealed class QuizScoringService(
             participantId,
             participantToken,
             cancellationToken);
-        var quiz = await quizRepository.GetByEventAsync(eventId, cancellationToken);
+        var quiz = await GetActiveQuizAsync(eventId, cancellationToken);
         if (quiz is null)
         {
             return new ParticipantQuizScoreSummary(participantId, 0, 0, 0, 1);
@@ -156,6 +156,14 @@ public sealed class QuizScoringService(
             command.EventId,
             command.SessionId,
             cancellationToken);
+    }
+
+    private async Task<Quiz?> GetActiveQuizAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        var session = await quizRepository.GetCurrentSessionAsync(eventId, cancellationToken);
+        return session is null
+            ? await quizRepository.GetByEventAsync(eventId, cancellationToken)
+            : await quizRepository.GetQuizAsync(session.QuizId, cancellationToken);
     }
 
     public async Task<QuizSessionStatistics> GetPublicSessionStatisticsAsync(

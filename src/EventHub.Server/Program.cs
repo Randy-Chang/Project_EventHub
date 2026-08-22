@@ -6,6 +6,7 @@ using EventHub.Application.Quizzes;
 using EventHub.Domain.Quizzes;
 using EventHub.Infrastructure.Persistence;
 using EventHub.Infrastructure.Persistence.Repositories;
+using EventHub.Infrastructure.Csv;
 using EventHub.Infrastructure.Presence;
 using EventHub.Infrastructure.Security;
 using EventHub.Server.Endpoints;
@@ -43,12 +44,16 @@ builder.Services.AddSingleton<IParticipantPresenceStore, InMemoryParticipantPres
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IParticipantRepository, ParticipantRepository>();
 builder.Services.AddScoped<IQuizRepository, QuizRepository>();
+builder.Services.AddScoped<IQuestionBankRepository, QuestionBankRepository>();
+builder.Services.AddScoped<IQuestionBankCsvParser, CsvHelperQuestionBankParser>();
 builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<ParticipantService>();
 builder.Services.AddScoped<ParticipantPresenceService>();
 builder.Services.AddSingleton<QuizScoreCalculator>();
 builder.Services.AddScoped<QuizScoringService>();
 builder.Services.AddScoped<QuizService>();
+builder.Services.AddScoped<QuestionBankService>();
+builder.Services.AddSingleton<QuestionBankValidator>();
 builder.Services.AddScoped<DisplayService>();
 
 var app = builder.Build();
@@ -71,6 +76,7 @@ app.MapGet("/join/{joinCode}", (string joinCode) =>
 app.MapEventEndpoints();
 app.MapParticipantEndpoints();
 app.MapQuizEndpoints();
+app.MapQuestionBankEndpoints();
 app.MapDisplayEndpoints();
 app.MapHub<PresenceHub>("/hubs/event");
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));

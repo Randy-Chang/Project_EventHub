@@ -1,0 +1,4 @@
+QuestionKey,QuizTitle,Category,Difficulty,Order,Question,OptionA,OptionB,OptionC,OptionD,CorrectOption,DurationSeconds
+HISTORY-001,公司尾牙快問快答,公司歷史,Easy,1,公司成立於哪一年？,1998,2000,2004,2008,B,20
+PRODUCT-001,公司尾牙快問快答,產品知識,Medium,2,"哪一項是公司今年的主力產品？","產品 Alpha","產品 Beta","產品 Gamma","產品 Delta",A,15
+CULTURE-001,公司尾牙快問快答,企業文化,Hard,3,"公司核心價值包含下列哪一項？","誠信與合作","只求速度","個人優先","避免溝通",A,25

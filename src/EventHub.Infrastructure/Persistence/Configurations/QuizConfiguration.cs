@@ -10,7 +10,7 @@ internal sealed class QuizConfiguration : IEntityTypeConfiguration<Quiz>
     {
         builder.ToTable("Quizzes");
         builder.HasKey(quiz => quiz.Id);
-        builder.Property(quiz => quiz.Title).HasMaxLength(200).IsRequired();
+        builder.Property(quiz => quiz.Title).HasMaxLength(200).UseCollation("NOCASE").IsRequired();
         builder.Property(quiz => quiz.CreatedAtUtc)
             .HasConversion(
                 value => value.ToUnixTimeMilliseconds(),
@@ -20,6 +20,6 @@ internal sealed class QuizConfiguration : IEntityTypeConfiguration<Quiz>
             .WithMany()
             .HasForeignKey(quiz => quiz.EventId)
             .OnDelete(DeleteBehavior.Cascade);
-        builder.HasIndex(quiz => quiz.EventId);
+        builder.HasIndex(quiz => new { quiz.EventId, quiz.Title }).IsUnique();
     }
 }

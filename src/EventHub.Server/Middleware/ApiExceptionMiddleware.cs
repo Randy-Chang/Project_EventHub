@@ -45,6 +45,15 @@ public sealed class ApiExceptionMiddleware(
             };
             await WriteProblemAsync(context, statusCode, exception.Message, exception.Code.ToString());
         }
+        catch (QuestionBankImportValidationException exception)
+        {
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
+            await context.Response.WriteAsJsonAsync(exception.Preview);
+        }
+        catch (QuestionBankImportConflictException exception)
+        {
+            await WriteProblemAsync(context, StatusCodes.Status409Conflict, exception.Message, "QuestionBankConflict");
+        }
         catch (EventJoinCodeGenerationException exception)
         {
             logger.LogError(exception, "Event join code generation exhausted all retries.");

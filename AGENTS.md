@@ -436,6 +436,16 @@ Database Constraint 應補足重要的資料一致性規則。
 
 WinForms 必須使用 Visual Studio Designer 標準模式。
 
+## WinForms UI 實作規則
+
+所有使用 WinForms 的顯示與操作畫面，必須使用 Visual Studio WinForms Designer 標準模式建立。
+
+- 不得將整個視窗或全部固定控制項改成由程式碼動態產生。
+- 固定控制項的宣告、初始化、Layout、`Dock` 與 `Anchor` 設定必須放在 `.Designer.cs`。
+- UI 邏輯、Event Handling、資料載入、網路操作與畫面狀態更新必須放在 `.cs`。
+- 只有真正由資料筆數決定的內容，例如選項、排行榜列或統計列，才可以合理地動態 Render。
+- 修改 Designer Layout 後，必須確認常用解析度與 Windows DPI 下不會重疊，且主要操作按鈕可被使用者操作。
+
 控制項宣告與 Designer Generated Layout 放在：
 
 `.Designer.cs`

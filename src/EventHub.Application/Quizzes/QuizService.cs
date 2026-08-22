@@ -49,8 +49,8 @@ public sealed class QuizService(
     {
         await EnsureHostAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
         var question = await GetRequiredQuestionAsync(command.QuestionId, cancellationToken);
-        var quiz = await quizRepository.GetByEventAsync(command.EventId, cancellationToken);
-        if (quiz is null || question.QuizId != quiz.Id)
+        var quiz = await quizRepository.GetQuizAsync(question.QuizId, cancellationToken);
+        if (quiz is null || quiz.EventId != command.EventId)
         {
             throw new QuizApplicationException(QuizErrorCode.QuestionNotFound, "找不到此活動的指定題目。");
         }

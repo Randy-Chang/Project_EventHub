@@ -6,6 +6,8 @@ public interface IQuizRepository
 {
     Task<Quiz?> GetByEventAsync(Guid eventId, CancellationToken cancellationToken);
 
+    Task<Quiz?> GetQuizAsync(Guid quizId, CancellationToken cancellationToken);
+
     Task AddQuizAsync(Quiz quiz, CancellationToken cancellationToken);
 
     Task<int> GetNextQuestionOrderAsync(Guid quizId, CancellationToken cancellationToken);

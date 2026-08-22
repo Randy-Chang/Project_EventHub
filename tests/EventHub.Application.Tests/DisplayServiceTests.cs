@@ -267,6 +267,8 @@ public sealed class DisplayServiceTests
         public List<QuizLeaderboardRow> LeaderboardRows { get; } = [];
 
         public Task<Quiz?> GetByEventAsync(Guid eventId, CancellationToken cancellationToken) => Task.FromResult(Quiz);
+        public Task<Quiz?> GetQuizAsync(Guid quizId, CancellationToken cancellationToken) =>
+            Task.FromResult(Quiz?.Id == quizId ? Quiz : null);
         public Task AddQuizAsync(Quiz quiz, CancellationToken cancellationToken) => Task.CompletedTask;
         public Task<int> GetNextQuestionOrderAsync(Guid quizId, CancellationToken cancellationToken) => Task.FromResult(2);
         public Task<int> CountQuestionsAsync(Guid quizId, CancellationToken cancellationToken) => Task.FromResult(1);

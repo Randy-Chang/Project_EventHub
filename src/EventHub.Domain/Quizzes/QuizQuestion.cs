@@ -10,10 +10,21 @@ public sealed class QuizQuestion
     {
     }
 
-    private QuizQuestion(Guid id, Guid quizId, string text, TimeSpan answerDuration, int order)
+    private QuizQuestion(
+        Guid id,
+        Guid quizId,
+        string questionKey,
+        string? category,
+        QuizQuestionDifficulty difficulty,
+        string text,
+        TimeSpan answerDuration,
+        int order)
     {
         Id = id;
         QuizId = quizId;
+        QuestionKey = questionKey;
+        Category = category;
+        Difficulty = difficulty;
         Text = text;
         AnswerDuration = answerDuration;
         Order = order;
@@ -22,6 +33,12 @@ public sealed class QuizQuestion
     public Guid Id { get; private set; }
 
     public Guid QuizId { get; private set; }
+
+    public string QuestionKey { get; private set; } = string.Empty;
+
+    public string? Category { get; private set; }
+
+    public QuizQuestionDifficulty Difficulty { get; private set; }
 
     public string Text { get; private set; } = string.Empty;
 
@@ -41,9 +58,44 @@ public sealed class QuizQuestion
         TimeSpan answerDuration,
         int order)
     {
+        return Create(
+            quizId,
+            $"MANUAL-{Guid.NewGuid():N}",
+            null,
+            QuizQuestionDifficulty.Medium,
+            text,
+            optionTexts,
+            correctOptionIndex,
+            answerDuration,
+            order);
+    }
+
+    public static QuizQuestion Create(
+        Guid quizId,
+        string questionKey,
+        string? category,
+        QuizQuestionDifficulty difficulty,
+        string text,
+        IReadOnlyCollection<string> optionTexts,
+        int correctOptionIndex,
+        TimeSpan answerDuration,
+        int order)
+    {
         if (quizId == Guid.Empty)
         {
             throw new DomainValidationException("Quiz 識別碼不可為空白。");
+        }
+
+        var normalizedQuestionKey = questionKey.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedQuestionKey) || normalizedQuestionKey.Length > 50)
+        {
+            throw new DomainValidationException("題目代碼須為 1 至 50 個字元。");
+        }
+
+        var normalizedCategory = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+        if (normalizedCategory?.Length > 100)
+        {
+            throw new DomainValidationException("題目分類不可超過 100 個字元。");
         }
 
         var normalizedText = text.Trim();
@@ -72,7 +124,15 @@ public sealed class QuizQuestion
             throw new DomainValidationException("題目順序必須大於零。");
         }
 
-        var question = new QuizQuestion(Guid.NewGuid(), quizId, normalizedText, answerDuration, order);
+        var question = new QuizQuestion(
+            Guid.NewGuid(),
+            quizId,
+            normalizedQuestionKey,
+            normalizedCategory,
+            difficulty,
+            normalizedText,
+            answerDuration,
+            order);
         var normalizedOptions = optionTexts.Select(value => value.Trim()).ToArray();
         if (normalizedOptions.Any(string.IsNullOrWhiteSpace) || normalizedOptions.Any(value => value.Length > 200))
         {

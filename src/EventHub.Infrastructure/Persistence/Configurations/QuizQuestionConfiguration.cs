@@ -10,6 +10,9 @@ internal sealed class QuizQuestionConfiguration : IEntityTypeConfiguration<QuizQ
     {
         builder.ToTable("QuizQuestions");
         builder.HasKey(question => question.Id);
+        builder.Property(question => question.QuestionKey).HasMaxLength(50).UseCollation("NOCASE").IsRequired();
+        builder.Property(question => question.Category).HasMaxLength(100);
+        builder.Property(question => question.Difficulty).HasConversion<string>().HasMaxLength(20).IsRequired();
         builder.Property(question => question.Text).HasMaxLength(500).IsRequired();
         builder.Property(question => question.AnswerDuration)
             .HasConversion(value => value.Ticks, value => TimeSpan.FromTicks(value));
@@ -25,5 +28,6 @@ internal sealed class QuizQuestionConfiguration : IEntityTypeConfiguration<QuizQ
             .OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(question => question.Options).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.HasIndex(question => new { question.QuizId, question.Order }).IsUnique();
+        builder.HasIndex(question => new { question.QuizId, question.QuestionKey }).IsUnique();
     }
 }

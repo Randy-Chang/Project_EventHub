@@ -13,6 +13,8 @@ public partial class HostDashboardForm : Form
     private Guid? selectedQuestionId;
     private Guid? currentSessionId;
     private CancellationTokenSource? quizDeadlineRefreshCancellation;
+    private IReadOnlyList<QuestionBankQuestionView> questionBankQuestions = [];
+    private QuizState currentQuizState = QuizState.Waiting;
 
     public HostDashboardForm()
     {
@@ -93,6 +95,7 @@ public partial class HostDashboardForm : Form
         await LoadQuizStateAsync(eventId);
         await LoadJoinInfoAsync(eventId);
         await LoadDisplayStateAsync(eventId);
+        await LoadQuestionBanksAsync(eventId);
         statusLabel.Text = "已連線，正在監看參與者";
     }
 
@@ -180,6 +183,190 @@ public partial class HostDashboardForm : Form
             quizStateLabel.Text = "狀態：Waiting（題目已建立）";
             UpdateQuizButtons(QuizState.Waiting);
         });
+    }
+
+    private async void importCsvButton_Click(object? sender, EventArgs e)
+    {
+        await RunUiOperationAsync(async () =>
+        {
+            using var dialog = new OpenFileDialog
+            {
+                Filter = "CSV 題庫 (*.csv)|*.csv",
+                Title = "選擇 EventHub 題庫 CSV",
+                CheckFileExists = true
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var eventId = GetEventId();
+            var preview = await UploadQuestionBankAsync<QuestionBankPreviewView>(
+                eventId,
+                "quiz-import/preview",
+                dialog.FileName);
+            using var previewForm = new QuestionBankImportPreviewForm(preview);
+            if (previewForm.ShowDialog(this) != DialogResult.OK)
+            {
+                statusLabel.Text = preview.IsValid ? "已取消題庫匯入。" : "CSV 驗證失敗，未匯入任何資料。";
+                return;
+            }
+
+            var result = await UploadQuestionBankAsync<QuestionBankImportResultView>(
+                eventId,
+                "quiz-import",
+                dialog.FileName);
+            await LoadQuestionBanksAsync(eventId, result.QuizId);
+            statusLabel.Text = $"已匯入題庫：{result.QuizTitle}（{result.QuestionCount} 題）";
+        });
+    }
+
+    private async void exportTemplateButton_Click(object? sender, EventArgs e)
+    {
+        await RunUiOperationAsync(async () =>
+        {
+            using var dialog = new SaveFileDialog
+            {
+                Filter = "CSV 檔案 (*.csv)|*.csv",
+                FileName = "EventHub_QuizTemplate.csv",
+                Title = "儲存 EventHub 題庫範本"
+            };
+            if (dialog.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+
+            var eventId = GetEventId();
+            using var request = CreateHostRequest(HttpMethod.Get, $"api/v1/events/{eventId:D}/quiz-import/template");
+            using var response = await httpClient.SendAsync(request);
+            await EnsureSuccessAsync(response);
+            await using var output = File.Create(dialog.FileName);
+            await response.Content.CopyToAsync(output);
+            statusLabel.Text = $"已匯出 CSV 範本：{dialog.FileName}";
+        });
+    }
+
+    private async void refreshQuestionBanksButton_Click(object? sender, EventArgs e) =>
+        await RunUiOperationAsync(() => LoadQuestionBanksAsync(GetEventId()));
+
+    private async void questionBankComboBox_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (questionBankComboBox.SelectedItem is not QuestionBankSummaryView bank)
+        {
+            return;
+        }
+
+        await RunUiOperationAsync(() => LoadQuestionBankQuestionsAsync(GetEventId(), bank.Id));
+    }
+
+    private void questionBankGrid_SelectionChanged(object? sender, EventArgs e)
+    {
+        if (questionBankGrid.CurrentRow?.Tag is not QuestionBankQuestionView question)
+        {
+            return;
+        }
+
+        selectedQuestionId = question.Id;
+        currentQuestionLabel.Text = $"目前選題：第 {question.Order} 題　{question.Text}";
+        var options = question.Options.OrderBy(option => option.Order)
+            .Select(option => $"{(char)('A' + option.Order)}. {option.Text}");
+        questionBankDetailTextBox.Text =
+            $"{question.Text}{Environment.NewLine}" +
+            $"{string.Join("　", options)}{Environment.NewLine}" +
+            $"正確答案：{(char)('A' + question.CorrectOptionIndex)}　秒數：{question.DurationSeconds}　狀態：{question.Status}";
+        UpdateQuizButtons(currentQuizState);
+    }
+
+    private void previousQuestionButton_Click(object? sender, EventArgs e) => MoveQuestionSelection(-1);
+
+    private void nextQuestionButton_Click(object? sender, EventArgs e) => MoveQuestionSelection(1);
+
+    private void MoveQuestionSelection(int offset)
+    {
+        if (currentQuizState is QuizState.Open or QuizState.Closed)
+        {
+            MessageBox.Show(this, "目前題目必須先關閉並公布答案，才可切換下一題。", "EventHub");
+            return;
+        }
+
+        if (questionBankGrid.Rows.Count == 0)
+        {
+            return;
+        }
+
+        var currentIndex = questionBankGrid.CurrentRow?.Index ?? 0;
+        var nextIndex = Math.Clamp(currentIndex + offset, 0, questionBankGrid.Rows.Count - 1);
+        questionBankGrid.CurrentCell = questionBankGrid.Rows[nextIndex].Cells[0];
+    }
+
+    private async Task<T> UploadQuestionBankAsync<T>(Guid eventId, string path, string filePath)
+    {
+        await using var stream = File.OpenRead(filePath);
+        using var content = new MultipartFormDataContent();
+        using var fileContent = new StreamContent(stream);
+        fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/csv");
+        content.Add(fileContent, "file", Path.GetFileName(filePath));
+        using var request = CreateHostRequest(HttpMethod.Post, $"api/v1/events/{eventId:D}/{path}");
+        request.Content = content;
+        using var response = await httpClient.SendAsync(request);
+        await EnsureSuccessAsync(response);
+        return await response.Content.ReadFromJsonAsync<T>()
+            ?? throw new InvalidOperationException("Server 未回傳題庫資料。");
+    }
+
+    private async Task LoadQuestionBanksAsync(Guid eventId, Guid? selectQuizId = null)
+    {
+        using var request = CreateHostRequest(HttpMethod.Get, $"api/v1/events/{eventId:D}/quiz/question-banks");
+        using var response = await httpClient.SendAsync(request);
+        await EnsureSuccessAsync(response);
+        var banks = await response.Content.ReadFromJsonAsync<List<QuestionBankSummaryView>>() ?? [];
+        questionBankComboBox.BeginUpdate();
+        questionBankComboBox.Items.Clear();
+        questionBankComboBox.Items.AddRange(banks.Cast<object>().ToArray());
+        questionBankComboBox.EndUpdate();
+        if (banks.Count == 0)
+        {
+            questionBankGrid.Rows.Clear();
+            questionBankQuestions = [];
+            questionBankDetailTextBox.Text = "目前沒有題庫。";
+            return;
+        }
+
+        var index = selectQuizId.HasValue ? banks.FindIndex(bank => bank.Id == selectQuizId.Value) : 0;
+        questionBankComboBox.SelectedIndex = index >= 0 ? index : 0;
+    }
+
+    private async Task LoadQuestionBankQuestionsAsync(Guid eventId, Guid quizId)
+    {
+        var previouslySelectedId = selectedQuestionId;
+        using var request = CreateHostRequest(
+            HttpMethod.Get,
+            $"api/v1/events/{eventId:D}/quiz/question-banks/{quizId:D}/questions");
+        using var response = await httpClient.SendAsync(request);
+        await EnsureSuccessAsync(response);
+        questionBankQuestions = await response.Content.ReadFromJsonAsync<List<QuestionBankQuestionView>>() ?? [];
+        questionBankGrid.Rows.Clear();
+        foreach (var question in questionBankQuestions.OrderBy(question => question.Order))
+        {
+            var index = questionBankGrid.Rows.Add(
+                question.Order,
+                question.QuestionKey,
+                question.Category,
+                question.Difficulty,
+                question.Text,
+                question.DurationSeconds,
+                question.Status);
+            questionBankGrid.Rows[index].Tag = question;
+        }
+
+        if (questionBankGrid.Rows.Count > 0)
+        {
+            var selectedRow = questionBankGrid.Rows.Cast<DataGridViewRow>()
+                .FirstOrDefault(row =>
+                    row.Tag is QuestionBankQuestionView question && question.Id == previouslySelectedId)
+                ?? questionBankGrid.Rows[0];
+            questionBankGrid.CurrentCell = selectedRow.Cells[0];
+        }
     }
 
     private async void startQuestionButton_Click(object? sender, EventArgs e)
@@ -325,6 +512,11 @@ public partial class HostDashboardForm : Form
         {
             await LoadQuizResultsAsync(eventId, state.SessionId.Value);
         }
+
+        if (questionBankComboBox.SelectedItem is QuestionBankSummaryView bank)
+        {
+            await LoadQuestionBankQuestionsAsync(eventId, bank.Id);
+        }
     }
 
     private void RefreshQuizStateThreadSafe(Guid eventId)
@@ -417,6 +609,7 @@ public partial class HostDashboardForm : Form
 
     private void ApplyQuizState(QuizStateView state)
     {
+        currentQuizState = state.State;
         currentSessionId = state.SessionId;
         selectedQuestionId = state.QuestionId ?? selectedQuestionId;
         currentQuestionLabel.Text = $"目前題目：{state.QuestionText ?? "等待建立或開始題目"}";
@@ -469,7 +662,7 @@ public partial class HostDashboardForm : Form
 
     private void UpdateQuizButtons(QuizState state)
     {
-        startQuestionButton.Enabled = selectedQuestionId.HasValue && state != QuizState.Open;
+        startQuestionButton.Enabled = selectedQuestionId.HasValue && state is QuizState.Waiting or QuizState.Revealed;
         closeQuestionButton.Enabled = currentSessionId.HasValue && state == QuizState.Open;
         revealAnswerButton.Enabled = currentSessionId.HasValue && state == QuizState.Closed;
     }
