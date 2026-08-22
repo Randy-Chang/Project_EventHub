@@ -1,4 +1,5 @@
 using EventHub.Domain.Participants;
+using EventHub.Domain.Quizzes;
 using Microsoft.EntityFrameworkCore;
 using DomainEvent = EventHub.Domain.Events.Event;
 
@@ -9,6 +10,16 @@ public sealed class EventHubDbContext(DbContextOptions<EventHubDbContext> option
     public DbSet<DomainEvent> Events => Set<DomainEvent>();
 
     public DbSet<Participant> Participants => Set<Participant>();
+
+    public DbSet<Quiz> Quizzes => Set<Quiz>();
+
+    public DbSet<QuizQuestion> QuizQuestions => Set<QuizQuestion>();
+
+    public DbSet<QuizOption> QuizOptions => Set<QuizOption>();
+
+    public DbSet<QuizQuestionSession> QuizQuestionSessions => Set<QuizQuestionSession>();
+
+    public DbSet<ParticipantAnswer> ParticipantAnswers => Set<ParticipantAnswer>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

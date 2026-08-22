@@ -144,6 +144,11 @@ public sealed class ParticipantServiceTests
             return Task.FromResult(result);
         }
 
+        public Task<int> CountByEventAsync(Guid eventId, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(Items.Count(item => item.EventId == eventId));
+        }
+
         public Task AddAsync(Participant participant, CancellationToken cancellationToken)
         {
             Items.Add(participant);

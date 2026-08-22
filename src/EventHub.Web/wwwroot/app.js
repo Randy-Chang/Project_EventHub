@@ -6,7 +6,16 @@
   const joined = document.getElementById("joined");
   const welcome = document.getElementById("welcome");
   const eventIdInput = document.getElementById("event-id");
+  const quizQuestion = document.getElementById("quiz-question");
+  const quizCountdown = document.getElementById("quiz-countdown");
+  const quizOptions = document.getElementById("quiz-options");
+  const quizMessage = document.getElementById("quiz-message");
   let connection;
+  let activeEventId;
+  let activeSession;
+  let countdownTimer;
+
+  const quizState = Object.freeze({ waiting: 0, open: 1, closed: 2, revealed: 3 });
 
   const queryEventId = new URLSearchParams(window.location.search).get("eventId");
   if (queryEventId) {
@@ -55,6 +64,7 @@
       await connectSignalR(eventId, session);
 
       showJoined(result.participant);
+      await loadCurrentQuizState(eventId, session);
       setStatus("已連線", false);
     } catch (error) {
       setStatus(error.message || "無法連線到活動 Server。", true);
@@ -81,9 +91,17 @@
       .build();
 
     connection.onreconnecting(() => setStatus("連線中斷，正在重新連線…", true));
-    connection.onreconnected(() => setStatus("已重新連線", false));
+    connection.onreconnected(async () => {
+      setStatus("已重新連線", false);
+      await loadCurrentQuizState(eventId, session);
+    });
     connection.onclose(() => setStatus("已離線，請檢查 Wi-Fi 後重新整理。", true));
+    connection.on("QuestionStarted", () => loadCurrentQuizState(eventId, session));
+    connection.on("QuestionClosed", () => loadCurrentQuizState(eventId, session));
+    connection.on("AnswerRevealed", () => loadCurrentQuizState(eventId, session));
     await connection.start();
+    activeEventId = eventId;
+    activeSession = session;
   }
 
   async function restoreExistingSession(eventId) {
@@ -107,6 +125,7 @@
       const participant = await response.json();
       await connectSignalR(eventId, savedSession);
       showJoined(participant);
+      await loadCurrentQuizState(eventId, savedSession);
       setStatus("已重新連線", false);
     } catch {
       setStatus("暫時無法恢復連線，請檢查 Wi-Fi 後重試。", true);
@@ -117,6 +136,128 @@
     welcome.textContent = `${participant.displayName}，歡迎加入！`;
     joined.hidden = false;
     form.hidden = true;
+  }
+
+  async function loadCurrentQuizState(eventId, session) {
+    try {
+      const response = await fetch(
+        `/api/v1/events/${encodeURIComponent(eventId)}/quiz/current?participantId=${encodeURIComponent(session.participantId)}`,
+        { headers: { "X-Participant-Token": session.token } });
+      if (!response.ok) {
+        const problem = await response.json();
+        throw new Error(problem.detail || "無法取得目前題目。");
+      }
+
+      renderQuizState(await response.json());
+    } catch (error) {
+      quizMessage.textContent = error.message || "題目狀態同步失敗。";
+      quizMessage.classList.add("error");
+    }
+  }
+
+  function renderQuizState(state) {
+    clearInterval(countdownTimer);
+    quizOptions.replaceChildren();
+    quizMessage.classList.remove("error", "correct", "incorrect");
+    quizCountdown.hidden = true;
+
+    if (state.state === quizState.waiting || !state.sessionId) {
+      quizQuestion.textContent = "等待下一題…";
+      quizMessage.textContent = "主持人開始題目後會自動顯示。";
+      return;
+    }
+
+    quizQuestion.textContent = state.questionText;
+    const optionById = new Map(state.options.map((option) => [option.id, option]));
+    state.options.forEach((option, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "quiz-option";
+      button.textContent = `${String.fromCharCode(65 + index)}. ${option.text}`;
+      button.disabled = state.state !== quizState.open || state.hasAnswered;
+      if (option.id === state.selectedOptionId) {
+        button.classList.add("selected");
+      }
+      if (state.state === quizState.revealed && option.id === state.correctOptionId) {
+        button.classList.add("answer-correct");
+      }
+      button.addEventListener("click", () => submitAnswer(state.sessionId, option.id));
+      quizOptions.appendChild(button);
+    });
+
+    if (state.state === quizState.open) {
+      if (state.hasAnswered) {
+        quizMessage.textContent = "答案已送出，等待其他人作答。";
+      } else {
+        quizMessage.textContent = "請選擇一個答案。";
+      }
+      startCountdown(state.answerDeadlineUtc);
+      return;
+    }
+
+    if (state.state === quizState.closed) {
+      quizMessage.textContent = "本題作答結束，等待主持人公布答案。";
+      return;
+    }
+
+    const correct = optionById.get(state.correctOptionId);
+    const selected = optionById.get(state.selectedOptionId);
+    const correctLabel = correct ? `${String.fromCharCode(65 + correct.order)}. ${correct.text}` : "未提供";
+    const selectedLabel = selected ? `${String.fromCharCode(65 + selected.order)}. ${selected.text}` : "未作答";
+    const resultLabel = !selected ? "未作答" : (state.isCorrect === true ? "答對！" : "答錯");
+    quizMessage.textContent = `正確答案：${correctLabel}　你的答案：${selectedLabel}　${resultLabel}`;
+    quizMessage.classList.add(state.isCorrect === true ? "correct" : "incorrect");
+  }
+
+  function startCountdown(deadlineUtc) {
+    quizCountdown.hidden = false;
+    const update = () => {
+      const remainingMilliseconds = new Date(deadlineUtc).getTime() - Date.now();
+      const seconds = Math.max(0, Math.ceil(remainingMilliseconds / 1000));
+      quizCountdown.textContent = `剩餘 ${String(seconds).padStart(2, "0")} 秒`;
+      if (remainingMilliseconds <= 0) {
+        clearInterval(countdownTimer);
+        if (activeEventId && activeSession) {
+          loadCurrentQuizState(activeEventId, activeSession);
+        }
+      }
+    };
+    countdownTimer = setInterval(update, 250);
+    update();
+  }
+
+  async function submitAnswer(sessionId, selectedOptionId) {
+    if (!activeEventId || !activeSession) {
+      return;
+    }
+
+    quizOptions.querySelectorAll("button").forEach((button) => { button.disabled = true; });
+    quizMessage.textContent = "正在送出答案…";
+    try {
+      const response = await fetch(
+        `/api/v1/events/${encodeURIComponent(activeEventId)}/quiz/sessions/${encodeURIComponent(sessionId)}/answers`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Participant-Token": activeSession.token
+          },
+          body: JSON.stringify({
+            participantId: activeSession.participantId,
+            selectedOptionId
+          })
+        });
+      if (!response.ok) {
+        const problem = await response.json();
+        throw new Error(problem.detail || "答案送出失敗。 ");
+      }
+
+      await loadCurrentQuizState(activeEventId, activeSession);
+    } catch (error) {
+      quizMessage.textContent = error.message || "答案送出失敗。";
+      quizMessage.classList.add("error");
+      await loadCurrentQuizState(activeEventId, activeSession);
+    }
   }
 
   function readSession(key) {

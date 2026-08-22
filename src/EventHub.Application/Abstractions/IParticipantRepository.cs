@@ -18,6 +18,8 @@ public interface IParticipantRepository
 
     Task<IReadOnlyList<Participant>> ListByEventAsync(Guid eventId, CancellationToken cancellationToken);
 
+    Task<int> CountByEventAsync(Guid eventId, CancellationToken cancellationToken);
+
     Task AddAsync(Participant participant, CancellationToken cancellationToken);
 
     Task UpdateAsync(Participant participant, CancellationToken cancellationToken);

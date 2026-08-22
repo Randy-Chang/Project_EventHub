@@ -7,6 +7,9 @@ public partial class HostDashboardForm : Form
 {
     private readonly HttpClient httpClient = new();
     private HubConnection? hubConnection;
+    private Guid? selectedQuestionId;
+    private Guid? currentSessionId;
+    private CancellationTokenSource? quizDeadlineRefreshCancellation;
 
     public HostDashboardForm()
     {
@@ -59,18 +62,219 @@ public partial class HostDashboardForm : Form
 
         hubConnection.On<ParticipantView>("ParticipantJoined", UpsertParticipantThreadSafe);
         hubConnection.On<ParticipantView>("ParticipantPresenceChanged", UpsertParticipantThreadSafe);
+        hubConnection.On<QuestionStartedNotification>("QuestionStarted", _ => RefreshQuizStateThreadSafe(eventId));
+        hubConnection.On<QuestionProgressNotification>("QuestionProgressUpdated", UpdateQuizProgressThreadSafe);
+        hubConnection.On<QuestionClosedNotification>("QuestionClosed", _ => RefreshQuizStateThreadSafe(eventId));
+        hubConnection.On<AnswerRevealedNotification>("AnswerRevealed", _ => RefreshQuizStateThreadSafe(eventId));
         hubConnection.Reconnecting += _ => UpdateStatusAsync("SignalR 重新連線中…");
         hubConnection.Reconnected += _ =>
         {
             UpdateStatusThreadSafe("SignalR 已重新連線");
-            BeginInvoke(async () => await LoadParticipantsAsync(eventId));
+            BeginInvoke(async () =>
+            {
+                await LoadParticipantsAsync(eventId);
+                await LoadQuizStateAsync(eventId);
+            });
             return Task.CompletedTask;
         };
         hubConnection.Closed += _ => UpdateStatusAsync("SignalR 已離線");
 
         await hubConnection.StartAsync();
         await LoadParticipantsAsync(eventId);
+        await LoadQuizStateAsync(eventId);
         statusLabel.Text = "已連線，正在監看參與者";
+    }
+
+    private async void createQuestionButton_Click(object? sender, EventArgs e)
+    {
+        await RunUiOperationAsync(async () =>
+        {
+            var eventId = GetEventId();
+            var options = new[]
+            {
+                optionATextBox.Text,
+                optionBTextBox.Text,
+                optionCTextBox.Text,
+                optionDTextBox.Text
+            }.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray();
+
+            if (correctOptionComboBox.SelectedIndex < 0 || correctOptionComboBox.SelectedIndex >= options.Length)
+            {
+                throw new InvalidOperationException("請選擇存在的正確答案選項。");
+            }
+
+            using var request = CreateHostRequest(
+                HttpMethod.Post,
+                $"api/v1/events/{eventId:D}/quiz/questions");
+            request.Content = JsonContent.Create(new CreateQuestionRequest(
+                questionTextBox.Text,
+                options,
+                correctOptionComboBox.SelectedIndex,
+                (int)answerDurationNumeric.Value));
+            using var response = await httpClient.SendAsync(request);
+            await EnsureSuccessAsync(response);
+            var question = await response.Content.ReadFromJsonAsync<QuestionView>()
+                ?? throw new InvalidOperationException("Server 未回傳題目資料。");
+            selectedQuestionId = question.Id;
+            currentQuestionLabel.Text = $"目前題目：{question.Text}";
+            quizStateLabel.Text = "狀態：Waiting（題目已建立）";
+            UpdateQuizButtons(QuizState.Waiting);
+        });
+    }
+
+    private async void startQuestionButton_Click(object? sender, EventArgs e)
+    {
+        await RunUiOperationAsync(async () =>
+        {
+            if (!selectedQuestionId.HasValue)
+            {
+                throw new InvalidOperationException("請先建立題目。");
+            }
+
+            var eventId = GetEventId();
+            using var request = CreateHostRequest(
+                HttpMethod.Post,
+                $"api/v1/events/{eventId:D}/quiz/questions/{selectedQuestionId.Value:D}/start");
+            request.Content = JsonContent.Create(new { });
+            using var response = await httpClient.SendAsync(request);
+            await EnsureSuccessAsync(response);
+            var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
+                ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
+            ApplyQuizState(state);
+        });
+    }
+
+    private async void closeQuestionButton_Click(object? sender, EventArgs e)
+    {
+        await ExecuteSessionCommandAsync("close");
+    }
+
+    private async void revealAnswerButton_Click(object? sender, EventArgs e)
+    {
+        await ExecuteSessionCommandAsync("reveal");
+    }
+
+    private async Task ExecuteSessionCommandAsync(string command)
+    {
+        await RunUiOperationAsync(async () =>
+        {
+            if (!currentSessionId.HasValue)
+            {
+                throw new InvalidOperationException("目前沒有題目場次。");
+            }
+
+            var eventId = GetEventId();
+            using var request = CreateHostRequest(
+                HttpMethod.Post,
+                $"api/v1/events/{eventId:D}/quiz/sessions/{currentSessionId.Value:D}/{command}");
+            request.Content = JsonContent.Create(new { });
+            using var response = await httpClient.SendAsync(request);
+            await EnsureSuccessAsync(response);
+            var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
+                ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
+            ApplyQuizState(state);
+        });
+    }
+
+    private async Task LoadQuizStateAsync(Guid eventId)
+    {
+        using var request = CreateHostRequest(
+            HttpMethod.Get,
+            $"api/v1/events/{eventId:D}/quiz/current");
+        using var response = await httpClient.SendAsync(request);
+        await EnsureSuccessAsync(response);
+        var state = await response.Content.ReadFromJsonAsync<QuizStateView>()
+            ?? throw new InvalidOperationException("Server 未回傳 Quiz 狀態。");
+        ApplyQuizState(state);
+    }
+
+    private void RefreshQuizStateThreadSafe(Guid eventId)
+    {
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        BeginInvoke(async () =>
+        {
+            try
+            {
+                await LoadQuizStateAsync(eventId);
+            }
+            catch (Exception exception)
+            {
+                statusLabel.Text = $"Quiz 狀態同步失敗：{exception.Message}";
+            }
+        });
+    }
+
+    private void UpdateQuizProgressThreadSafe(QuestionProgressNotification progress)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(() => UpdateQuizProgressThreadSafe(progress));
+            return;
+        }
+
+        if (currentSessionId == progress.SessionId)
+        {
+            quizProgressLabel.Text =
+                $"已作答 {progress.AnsweredCount} / {progress.ParticipantCount}　在線 {progress.OnlineCount}";
+        }
+    }
+
+    private void ApplyQuizState(QuizStateView state)
+    {
+        currentSessionId = state.SessionId;
+        selectedQuestionId = state.QuestionId ?? selectedQuestionId;
+        currentQuestionLabel.Text = $"目前題目：{state.QuestionText ?? "等待建立或開始題目"}";
+        quizStateLabel.Text = $"狀態：{state.State}";
+        quizProgressLabel.Text = $"已作答 {state.AnsweredCount} / {state.ParticipantCount}　在線 {state.OnlineCount}";
+        UpdateQuizButtons(state.State);
+        ScheduleDeadlineRefresh(state);
+    }
+
+    private void ScheduleDeadlineRefresh(QuizStateView state)
+    {
+        quizDeadlineRefreshCancellation?.Cancel();
+        quizDeadlineRefreshCancellation?.Dispose();
+        quizDeadlineRefreshCancellation = null;
+        if (state.State != QuizState.Open || !state.AnswerDeadlineUtc.HasValue)
+        {
+            return;
+        }
+
+        quizDeadlineRefreshCancellation = new CancellationTokenSource();
+        _ = RefreshAtDeadlineAsync(
+            state.AnswerDeadlineUtc.Value,
+            quizDeadlineRefreshCancellation.Token);
+    }
+
+    private async Task RefreshAtDeadlineAsync(DateTimeOffset deadlineUtc, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var delay = deadlineUtc - DateTimeOffset.UtcNow;
+            if (delay > TimeSpan.Zero)
+            {
+                await Task.Delay(delay, cancellationToken);
+            }
+
+            if (!cancellationToken.IsCancellationRequested && !IsDisposed)
+            {
+                BeginInvoke(async () => await LoadQuizStateAsync(GetEventId()));
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void UpdateQuizButtons(QuizState state)
+    {
+        startQuestionButton.Enabled = selectedQuestionId.HasValue && state != QuizState.Open;
+        closeQuestionButton.Enabled = currentSessionId.HasValue && state == QuizState.Open;
+        revealAnswerButton.Enabled = currentSessionId.HasValue && state == QuizState.Closed;
     }
 
     private async Task LoadParticipantsAsync(Guid eventId)
@@ -145,6 +349,20 @@ public partial class HostDashboardForm : Form
         return new Uri(uri.AbsoluteUri.TrimEnd('/') + "/");
     }
 
+    private Guid GetEventId()
+    {
+        return Guid.TryParse(eventIdTextBox.Text, out var eventId)
+            ? eventId
+            : throw new InvalidOperationException("活動 ID 格式不正確。");
+    }
+
+    private HttpRequestMessage CreateHostRequest(HttpMethod method, string relativeUri)
+    {
+        var request = new HttpRequestMessage(method, new Uri(GetServerUri(), relativeUri));
+        request.Headers.Add("X-Host-Token", hostTokenTextBox.Text);
+        return request;
+    }
+
     private async Task RunUiOperationAsync(Func<Task> operation)
     {
         createEventButton.Enabled = false;
@@ -196,6 +414,8 @@ public partial class HostDashboardForm : Form
 
     private async void HostDashboardForm_FormClosed(object? sender, FormClosedEventArgs e)
     {
+        quizDeadlineRefreshCancellation?.Cancel();
+        quizDeadlineRefreshCancellation?.Dispose();
         await DisconnectHubAsync();
         httpClient.Dispose();
     }
@@ -227,4 +447,42 @@ public partial class HostDashboardForm : Form
         int Score);
 
     private sealed record ProblemResponse(string? Detail);
+
+    private sealed record CreateQuestionRequest(
+        string QuestionText,
+        IReadOnlyCollection<string> Options,
+        int CorrectOptionIndex,
+        int AnswerDurationSeconds);
+
+    private sealed record QuestionView(Guid Id, string Text);
+
+    private sealed record QuizStateView(
+        QuizState State,
+        Guid? SessionId,
+        Guid? QuestionId,
+        string? QuestionText,
+        int AnsweredCount,
+        int ParticipantCount,
+        int OnlineCount,
+        DateTimeOffset? AnswerDeadlineUtc);
+
+    private sealed record QuestionStartedNotification(Guid SessionId);
+
+    private sealed record QuestionProgressNotification(
+        Guid SessionId,
+        int AnsweredCount,
+        int ParticipantCount,
+        int OnlineCount);
+
+    private sealed record QuestionClosedNotification(Guid SessionId);
+
+    private sealed record AnswerRevealedNotification(Guid SessionId);
+
+    private enum QuizState
+    {
+        Waiting,
+        Open,
+        Closed,
+        Revealed
+    }
 }

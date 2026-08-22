@@ -48,6 +48,13 @@ public sealed class ParticipantRepository(EventHubDbContext dbContext) : IPartic
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountByEventAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        return dbContext.Participants.CountAsync(
+            participant => participant.EventId == eventId,
+            cancellationToken);
+    }
+
     public async Task AddAsync(Participant participant, CancellationToken cancellationToken)
     {
         dbContext.Participants.Add(participant);
@@ -63,8 +70,17 @@ public sealed class ParticipantRepository(EventHubDbContext dbContext) : IPartic
         }
     }
 
-    public Task UpdateAsync(Participant participant, CancellationToken cancellationToken)
+    public async Task UpdateAsync(Participant participant, CancellationToken cancellationToken)
     {
-        return dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // LastSeen is presence metadata. A simultaneous REST restore and SignalR reconnect
+            // may update it together; the already-persisted value is sufficient.
+            dbContext.Entry(participant).State = EntityState.Detached;
+        }
     }
 }

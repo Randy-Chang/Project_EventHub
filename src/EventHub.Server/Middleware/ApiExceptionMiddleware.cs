@@ -1,3 +1,4 @@
+using EventHub.Application.Quizzes;
 using EventHub.Domain.Common;
 using Microsoft.AspNetCore.WebUtilities;
 
@@ -13,6 +14,10 @@ public sealed class ApiExceptionMiddleware(
         {
             await next(context);
         }
+        catch (BadHttpRequestException exception)
+        {
+            await WriteProblemAsync(context, StatusCodes.Status400BadRequest, exception.Message);
+        }
         catch (DomainValidationException exception)
         {
             await WriteProblemAsync(context, StatusCodes.Status400BadRequest, exception.Message);
@@ -25,6 +30,20 @@ public sealed class ApiExceptionMiddleware(
         {
             await WriteProblemAsync(context, StatusCodes.Status401Unauthorized, exception.Message);
         }
+        catch (QuizApplicationException exception)
+        {
+            logger.LogWarning(
+                "Quiz request rejected with {ErrorCode}: {Reason}",
+                exception.Code,
+                exception.Message);
+            var statusCode = exception.Code switch
+            {
+                QuizErrorCode.QuestionNotFound or QuizErrorCode.SessionNotFound => StatusCodes.Status404NotFound,
+                QuizErrorCode.InvalidOption => StatusCodes.Status400BadRequest,
+                _ => StatusCodes.Status409Conflict
+            };
+            await WriteProblemAsync(context, statusCode, exception.Message, exception.Code.ToString());
+        }
         catch (Exception exception)
         {
             logger.LogError(exception, "Unhandled server exception.");
@@ -35,7 +54,11 @@ public sealed class ApiExceptionMiddleware(
         }
     }
 
-    private static Task WriteProblemAsync(HttpContext context, int statusCode, string detail)
+    private static Task WriteProblemAsync(
+        HttpContext context,
+        int statusCode,
+        string detail,
+        string? code = null)
     {
         context.Response.StatusCode = statusCode;
         return context.Response.WriteAsJsonAsync(new
@@ -43,7 +66,8 @@ public sealed class ApiExceptionMiddleware(
             type = "about:blank",
             title = ReasonPhrases.GetReasonPhrase(statusCode),
             status = statusCode,
-            detail
+            detail,
+            code
         });
     }
 }

@@ -1,6 +1,7 @@
 using EventHub.Application.Abstractions;
 using EventHub.Application.Events;
 using EventHub.Application.Participants;
+using EventHub.Application.Quizzes;
 using EventHub.Infrastructure.Persistence;
 using EventHub.Infrastructure.Persistence.Repositories;
 using EventHub.Infrastructure.Presence;
@@ -22,7 +23,8 @@ Directory.CreateDirectory(dataDirectory);
 var connectionString = new SqliteConnectionStringBuilder
 {
     DataSource = Path.Combine(dataDirectory, "eventhub.db"),
-    ForeignKeys = true
+    ForeignKeys = true,
+    DefaultTimeout = 30
 }.ToString();
 
 builder.Services.AddDbContext<EventHubDbContext>(options => options.UseSqlite(connectionString));
@@ -32,9 +34,11 @@ builder.Services.AddSingleton<ICredentialService, CryptographicCredentialService
 builder.Services.AddSingleton<IParticipantPresenceStore, InMemoryParticipantPresenceStore>();
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IParticipantRepository, ParticipantRepository>();
+builder.Services.AddScoped<IQuizRepository, QuizRepository>();
 builder.Services.AddScoped<EventService>();
 builder.Services.AddScoped<ParticipantService>();
 builder.Services.AddScoped<ParticipantPresenceService>();
+builder.Services.AddScoped<QuizService>();
 
 var app = builder.Build();
 
@@ -45,6 +49,7 @@ app.MapGet("/", (HttpRequest request) =>
     Results.Redirect($"/_content/EventHub.Web/index.html{request.QueryString}"));
 app.MapEventEndpoints();
 app.MapParticipantEndpoints();
+app.MapQuizEndpoints();
 app.MapHub<PresenceHub>("/hubs/event");
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
@@ -52,6 +57,8 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<EventHubDbContext>();
     await dbContext.Database.MigrateAsync();
+    await dbContext.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
+    await dbContext.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=30000;");
 }
 
 await app.RunAsync();

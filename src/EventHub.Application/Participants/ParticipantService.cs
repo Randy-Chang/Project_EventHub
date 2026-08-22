@@ -73,16 +73,28 @@ public sealed class ParticipantService(
         string sessionToken,
         CancellationToken cancellationToken)
     {
-        var participant = await participantRepository.GetByIdAsync(participantId, cancellationToken);
-        if (participant is null ||
-            participant.EventId != eventId ||
-            !credentialService.Matches(sessionToken, participant.SessionCredentialHash))
-        {
-            throw new UnauthorizedAccessException("Participant credential 無效。");
-        }
+        var participant = await GetValidatedParticipantAsync(
+            eventId,
+            participantId,
+            sessionToken,
+            cancellationToken);
 
         participant.MarkSeen(timeProvider.GetUtcNow());
         await participantRepository.UpdateAsync(participant, cancellationToken);
+        return ToSummary(participant, presenceStore.GetOnlineParticipantIds(eventId).Contains(participant.Id));
+    }
+
+    public async Task<ParticipantSummary> ValidateSessionCredentialAsync(
+        Guid eventId,
+        Guid participantId,
+        string sessionToken,
+        CancellationToken cancellationToken)
+    {
+        var participant = await GetValidatedParticipantAsync(
+            eventId,
+            participantId,
+            sessionToken,
+            cancellationToken);
         return ToSummary(participant, presenceStore.GetOnlineParticipantIds(eventId).Contains(participant.Id));
     }
 
@@ -115,6 +127,23 @@ public sealed class ParticipantService(
             isOnline,
             participant.HasWon,
             participant.Score);
+    }
+
+    private async Task<Participant> GetValidatedParticipantAsync(
+        Guid eventId,
+        Guid participantId,
+        string sessionToken,
+        CancellationToken cancellationToken)
+    {
+        var participant = await participantRepository.GetByIdAsync(participantId, cancellationToken);
+        if (participant is null ||
+            participant.EventId != eventId ||
+            !credentialService.Matches(sessionToken, participant.SessionCredentialHash))
+        {
+            throw new UnauthorizedAccessException("Participant credential 無效。");
+        }
+
+        return participant;
     }
 
     private static string? NormalizeEmployeeNumber(string? employeeNumber)
