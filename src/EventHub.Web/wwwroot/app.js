@@ -22,6 +22,7 @@
   let recoveryPollingTimer;
   let reconnectLoopPromise;
   let quizStateRequestVersion = 0;
+  let serverClockOffsetMilliseconds = 0;
 
   const quizState = Object.freeze({ waiting: 0, open: 1, closed: 2, revealed: 3 });
   const reconnectDelays = [0, 2000, 5000, 10000, 30000];
@@ -305,6 +306,17 @@
 
   function renderQuizState(state) {
     clearInterval(countdownTimer);
+    console.log("Countdown stopped: Quiz state render");
+    console.log("QuizState =", state);
+    console.log("QuestionState =", state.state);
+    console.log("DeadlineUtc =", state.answerDeadlineUtc);
+    console.log("BrowserNowUtc =", new Date().toISOString());
+    updateServerClockOffset(state.serverTimeUtc);
+    const deadline = parseDeadline(state.answerDeadlineUtc);
+    const remainingMilliseconds = deadline
+      ? deadline.getTime() - getServerAdjustedNowMilliseconds()
+      : Number.NaN;
+    console.log("RemainingMs =", remainingMilliseconds);
     quizOptions.replaceChildren();
     quizMessage.classList.remove("error", "correct", "incorrect");
     quizScore.hidden = true;
@@ -325,7 +337,9 @@
       button.type = "button";
       button.className = "quiz-option";
       button.textContent = `${String.fromCharCode(65 + index)}. ${option.text}`;
-      button.disabled = state.state !== quizState.open || state.hasAnswered;
+      const disableReason = getAnswerDisableReason(state, deadline, remainingMilliseconds);
+      button.disabled = disableReason !== null;
+      console.log(button.disabled ? `Answer disabled: ${disableReason}` : "Answer enabled");
       if (option.id === state.selectedOptionId) {
         button.classList.add("selected");
       }
@@ -342,7 +356,7 @@
       } else {
         quizMessage.textContent = "請選擇一個答案。";
       }
-      startCountdown(state.answerDeadlineUtc);
+      startCountdown(deadline);
       return;
     }
 
@@ -396,14 +410,57 @@
     }
   }
 
-  function startCountdown(deadlineUtc) {
+  function updateServerClockOffset(serverTimeUtc) {
+    const serverTime = new Date(serverTimeUtc);
+    serverClockOffsetMilliseconds = Number.isNaN(serverTime.getTime())
+      ? 0
+      : serverTime.getTime() - Date.now();
+  }
+
+  function getServerAdjustedNowMilliseconds() {
+    return Date.now() + serverClockOffsetMilliseconds;
+  }
+
+  function parseDeadline(deadlineUtc) {
+    if (!deadlineUtc) {
+      return null;
+    }
+
+    const deadline = new Date(deadlineUtc);
+    return Number.isNaN(deadline.getTime()) ? null : deadline;
+  }
+
+  function getAnswerDisableReason(state, deadline, remainingMilliseconds) {
+    if (state.state !== quizState.open) {
+      return "Question not open";
+    }
+    if (!deadline) {
+      return "Missing or invalid deadline";
+    }
+    if (remainingMilliseconds <= 0) {
+      return "Deadline expired";
+    }
+    if (state.hasAnswered) {
+      return "Already answered";
+    }
+    return null;
+  }
+
+  function startCountdown(deadline) {
+    if (!deadline) {
+      console.log("Countdown stopped: Missing or invalid deadline");
+      return;
+    }
+
+    console.log("Countdown started");
     quizCountdown.hidden = false;
     const update = () => {
-      const remainingMilliseconds = new Date(deadlineUtc).getTime() - Date.now();
+      const remainingMilliseconds = deadline.getTime() - getServerAdjustedNowMilliseconds();
       const seconds = Math.max(0, Math.ceil(remainingMilliseconds / 1000));
       quizCountdown.textContent = `剩餘 ${String(seconds).padStart(2, "0")} 秒`;
       if (remainingMilliseconds <= 0) {
         clearInterval(countdownTimer);
+        console.log("Countdown stopped: Deadline expired");
         if (activeEventId && activeSession) {
           loadCurrentQuizState(activeEventId, activeSession);
         }

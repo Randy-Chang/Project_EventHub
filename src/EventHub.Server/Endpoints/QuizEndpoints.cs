@@ -38,6 +38,7 @@ public static class QuizEndpoints
             QuizService quizService,
             IHubContext<PresenceHub, IEventClient> hubContext,
             ILogger<QuizEndpointLog> logger,
+            TimeProvider timeProvider,
             CancellationToken cancellationToken) =>
         {
             var state = await quizService.StartQuestionAsync(
@@ -52,10 +53,14 @@ public static class QuizEndpoints
                 state.AnswerDeadlineUtc!.Value);
             await BroadcastAsync(hubContext, eventId, client => client.QuestionStarted(notification));
             logger.LogInformation(
-                "Question {QuestionId} started for event {EventId} with session {SessionId}.",
-                questionId,
+                "Question started. ServerNowUtc={ServerNowUtc}, EventId={EventId}, QuestionSessionId={QuestionSessionId}, StartedAtUtc={StartedAtUtc}, DeadlineUtc={DeadlineUtc}, DurationSeconds={DurationSeconds}, QuestionState={QuestionState}.",
+                timeProvider.GetUtcNow(),
                 eventId,
-                state.SessionId);
+                state.SessionId,
+                state.StartedAtUtc,
+                state.AnswerDeadlineUtc,
+                (state.AnswerDeadlineUtc!.Value - state.StartedAtUtc!.Value).TotalSeconds,
+                state.State);
             return Results.Ok(state);
         });
 

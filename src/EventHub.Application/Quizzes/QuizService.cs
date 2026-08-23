@@ -217,6 +217,7 @@ public sealed class QuizService(
                 cancellationToken);
         }
 
+        var serverTimeUtc = timeProvider.GetUtcNow();
         return new CurrentQuizState(
             session.State,
             session.Id,
@@ -238,7 +239,8 @@ public sealed class QuizService(
             questionResult?.SpeedBonus,
             questionResult?.Score,
             totalAndRank?.TotalScore,
-            totalAndRank?.Rank);
+            totalAndRank?.Rank,
+            serverTimeUtc);
     }
 
     private async Task<CurrentQuizState> BuildWaitingStateAsync(Guid eventId, CancellationToken cancellationToken)
@@ -265,7 +267,8 @@ public sealed class QuizService(
             null,
             null,
             null,
-            null);
+            null,
+            timeProvider.GetUtcNow());
     }
 
     private async Task<QuizProgress> GetProgressAsync(

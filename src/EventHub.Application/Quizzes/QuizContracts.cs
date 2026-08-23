@@ -68,7 +68,8 @@ public sealed record CurrentQuizState(
     int? SpeedBonus,
     int? QuestionScore,
     int? TotalScore,
-    int? Rank);
+    int? Rank,
+    DateTimeOffset ServerTimeUtc = default);
 
 public sealed record QuizStateQuery(
     Guid EventId,
