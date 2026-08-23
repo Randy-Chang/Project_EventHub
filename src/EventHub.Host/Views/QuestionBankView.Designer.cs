@@ -104,8 +104,8 @@ partial class QuestionBankView
         statusLabel.Dock = DockStyle.Bottom;
         statusLabel.Height = 28;
         statusLabel.Text = "等待操作";
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.White;
         Controls.Add(questionGrid);
         Controls.Add(statusLabel);

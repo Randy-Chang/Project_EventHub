@@ -44,6 +44,27 @@ public sealed class HostDashboardLayoutTests
     }
 
     [Fact]
+    public void HostShellAndViews_UseConsistentDpiScaling()
+    {
+        using var form = new HostDashboardForm();
+        var scalableControls = new[]
+        {
+            (ContainerControl)form,
+            Assert.IsAssignableFrom<ContainerControl>(Assert.Single(form.Controls.Find("dashboardView", true))),
+            Assert.IsAssignableFrom<ContainerControl>(Assert.Single(form.Controls.Find("eventManagementView", true))),
+            Assert.IsAssignableFrom<ContainerControl>(Assert.Single(form.Controls.Find("questionBankView", true))),
+            Assert.IsAssignableFrom<ContainerControl>(Assert.Single(form.Controls.Find("quizActivityView", true))),
+            Assert.IsAssignableFrom<ContainerControl>(Assert.Single(form.Controls.Find("liveMonitorView", true)))
+        };
+
+        Assert.All(scalableControls, control =>
+        {
+            Assert.Equal(AutoScaleMode.Dpi, control.AutoScaleMode);
+            Assert.Equal(new SizeF(96F, 96F), control.AutoScaleDimensions);
+        });
+    }
+
+    [Fact]
     public void ActivityShell_ExposesOnePersistentPrimaryWorkflowAction()
     {
         using var form = new HostDashboardForm();

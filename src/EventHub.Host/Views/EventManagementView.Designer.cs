@@ -214,8 +214,8 @@ partial class EventManagementView
         participantGrid.Dock = DockStyle.Fill;
         participantGrid.ReadOnly = true;
         participantGrid.RowHeadersVisible = false;
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.White;
         Controls.Add(participantsGroupBox);
         Controls.Add(joinGroupBox);

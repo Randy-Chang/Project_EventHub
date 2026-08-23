@@ -91,8 +91,8 @@ partial class QuestionBankImportPreviewForm
         cancelButton.Text = "取消";
         AcceptButton = confirmButton;
         CancelButton = cancelButton;
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(900, 588);
         Controls.Add(fileNameCaptionLabel);
         Controls.Add(fileNameValueLabel);

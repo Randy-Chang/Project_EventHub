@@ -53,6 +53,10 @@ public sealed class PresenceHub(
 
                 Context.Items[ParticipantContextKey] = result.Participant;
                 await Groups.AddToGroupAsync(Context.ConnectionId, GuestGroup(eventId));
+                logger.LogInformation(
+                    "Guest realtime connection registered for event {EventId}, participant {ParticipantId}.",
+                    eventId,
+                    participantId);
                 await Clients.Group(HostGroup(eventId)).ParticipantPresenceChanged(
                     result.Participant);
             }

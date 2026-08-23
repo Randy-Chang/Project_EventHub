@@ -391,8 +391,8 @@ partial class QuizActivityView
         leaderboardGrid.RowHeadersVisible = false;
         countdownTimer.Interval = 250;
         countdownTimer.Tick += countdownTimer_Tick;
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.White;
         Controls.Add(rootLayoutPanel);
         Name = "QuizActivityView";

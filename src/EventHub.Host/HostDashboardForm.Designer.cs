@@ -262,8 +262,8 @@ partial class HostDashboardForm
         actionStatusLabel.Name = "actionStatusLabel";
         actionStatusLabel.Text = "等待操作";
         actionStatusLabel.TextAlign = ContentAlignment.MiddleCenter;
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
+        AutoScaleDimensions = new SizeF(96F, 96F);
+        AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(1440, 900);
         Controls.Add(shellTableLayoutPanel);
         MinimumSize = new Size(1180, 720);
