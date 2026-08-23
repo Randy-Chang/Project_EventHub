@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace EventHub.Host.Views;
@@ -13,6 +14,7 @@ internal enum OperationMessageKind
 internal partial class EventManagementView : UserControl
 {
     private const int EventHubServerPort = 5000;
+    private string currentJoinCode = string.Empty;
 
     public EventManagementView()
     {
@@ -64,17 +66,29 @@ internal partial class EventManagementView : UserControl
         {
             lanAddressComboBox.EndUpdate();
         }
+
+        RenderSelectedNetwork();
     }
 
     public void SetEventCredential(Guid eventId, string hostToken)
     {
         eventIdTextBox.Text = eventId.ToString();
         hostTokenTextBox.Text = hostToken;
+        currentEventIdValueLabel.Text = ShortenEventId(eventId);
+        currentEventDateValueLabel.Text = eventDatePicker.Value.ToString("yyyy/MM/dd HH:mm");
+        eventIdToolTip.SetToolTip(currentEventIdValueLabel, eventId.ToString());
     }
 
     public void RenderJoinInfo(EventJoinInfoView joinInfo, Image qrCode)
     {
-        eventInfoValueLabel.Text = $"{joinInfo.EventName}　Join Code：{joinInfo.JoinCode}";
+        eventIdTextBox.Text = joinInfo.EventId.ToString();
+        currentEventNameValueLabel.Text = joinInfo.EventName;
+        eventSetupTitleLabel.Text = "STEP 2　建立或連線活動　✓ 已完成";
+        currentEventIdValueLabel.Text = ShortenEventId(joinInfo.EventId);
+        eventIdToolTip.SetToolTip(currentEventIdValueLabel, joinInfo.EventId.ToString());
+        currentJoinCode = joinInfo.JoinCode;
+        joinCodeValueLabel.Text = string.Join(" ", joinInfo.JoinCode.ToCharArray());
+        mobileJoinTitleLabel.Text = "STEP 4　手機加入　✓ 加入資訊已準備";
         joinUrlTextBox.Text = joinInfo.JoinUrl;
         joinUrlWarningLabel.Text = joinInfo.IsLoopback
             ? "警告：目前使用 localhost，其他手機無法連線。"
@@ -92,11 +106,21 @@ internal partial class EventManagementView : UserControl
         {
             UpsertParticipant(participant);
         }
+
+        UpdateParticipantPresentation();
     }
 
     public void ResetCurrentContext()
     {
-        eventInfoValueLabel.Text = "尚未建立或連線";
+        currentEventNameValueLabel.Text = "尚未建立或連線";
+        currentEventDateValueLabel.Text = "—";
+        currentEventIdValueLabel.Text = "—";
+        currentEventStatusValueLabel.Text = "未連線";
+        eventSetupTitleLabel.Text = "STEP 2　建立或連線活動　○ 尚未完成";
+        mobileJoinTitleLabel.Text = "STEP 4　手機加入　○ 尚未準備";
+        eventIdToolTip.SetToolTip(currentEventIdValueLabel, null);
+        currentJoinCode = string.Empty;
+        joinCodeValueLabel.Text = "— — — — — —";
         joinUrlTextBox.Clear();
         joinUrlWarningLabel.Text = "建立活動後顯示 QR Code。";
         joinUrlWarningLabel.ForeColor = SystemColors.ControlText;
@@ -104,6 +128,7 @@ internal partial class EventManagementView : UserControl
         joinQrCodePictureBox.Image = null;
         previous?.Dispose();
         participantGrid.Rows.Clear();
+        UpdateParticipantPresentation();
     }
 
     public void UpsertParticipant(ParticipantView participant)
@@ -119,6 +144,36 @@ internal partial class EventManagementView : UserControl
             participant.TableNumber,
             participant.IsOnline ? "在線" : "離線",
             participant.Score);
+        UpdateParticipantPresentation();
+    }
+
+    public void RenderConnectionState(HostConnectionState state)
+    {
+        var (text, color) = state switch
+        {
+            HostConnectionState.Connected => ("已連線", Color.DarkGreen),
+            HostConnectionState.Connecting => ("連線中…", Color.DarkOrange),
+            HostConnectionState.Reconnecting => ("重新連線中…", Color.DarkOrange),
+            _ => ("未連線", Color.Firebrick)
+        };
+        currentEventStatusValueLabel.Text = text;
+        currentEventStatusValueLabel.ForeColor = color;
+        currentEventTitleLabel.Text = state == HostConnectionState.Connected
+            ? "STEP 3　目前活動　✓ 已連線"
+            : $"STEP 3　目前活動　○ {text}";
+        serverStatusValueLabel.Text = text;
+        serverStatusValueLabel.ForeColor = color;
+    }
+
+    public void RenderFirewallReady()
+    {
+        firewallStatusValueLabel.Text = "已就緒";
+        firewallStatusValueLabel.ForeColor = Color.DarkGreen;
+    }
+
+    public void RenderNetworkReady()
+    {
+        networkStatusTitleLabel.Text = "STEP 1　活動網路　✓ 網路已準備完成";
     }
 
     public void SetStatus(string message, bool isError = false)
@@ -159,6 +214,7 @@ internal partial class EventManagementView : UserControl
         if (disposing)
         {
             joinQrCodePictureBox.Image?.Dispose();
+            components?.Dispose();
         }
 
         base.Dispose(disposing);
@@ -173,21 +229,61 @@ internal partial class EventManagementView : UserControl
     private void installFirewallRuleButton_Click(object? sender, EventArgs e) =>
         InstallFirewallRuleRequested?.Invoke(this, EventArgs.Empty);
 
-    private void copyJoinUrlButton_Click(object? sender, EventArgs e)
+    private void lanAddressComboBox_SelectedIndexChanged(object? sender, EventArgs e) => RenderSelectedNetwork();
+
+    private void copyEventIdButton_Click(object? sender, EventArgs e) =>
+        CopyText(eventIdTextBox.Text, "Event ID");
+
+    private void copyJoinCodeButton_Click(object? sender, EventArgs e) =>
+        CopyText(currentJoinCode, "Join Code");
+
+    private void copyJoinUrlButton_Click(object? sender, EventArgs e) =>
+        CopyText(joinUrlTextBox.Text, "加入網址");
+
+    private void CopyText(string value, string description)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(joinUrlTextBox.Text))
+            if (string.IsNullOrWhiteSpace(value))
             {
-                throw new InvalidOperationException("目前沒有可複製的加入網址。");
+                throw new InvalidOperationException($"目前沒有可複製的 {description}。");
             }
 
-            Clipboard.SetText(joinUrlTextBox.Text);
-            SetStatus("加入網址已複製。");
+            Clipboard.SetText(value);
+            SetStatus($"✓ {description} 已複製。", OperationMessageKind.Success);
         }
         catch (Exception exception) when (exception is ExternalException or InvalidOperationException)
         {
-            SetStatus($"複製失敗：{exception.Message}", true);
+            Trace.TraceError($"Clipboard copy failed for {description}: {exception}");
+            SetStatus($"✕ 無法複製到剪貼簿：{exception.Message}", OperationMessageKind.Error);
         }
+    }
+
+    private void RenderSelectedNetwork()
+    {
+        if (lanAddressComboBox.SelectedItem is LanAddressOption selected)
+        {
+            networkReadyValueLabel.Text = selected.ToString();
+            networkReadyValueLabel.ForeColor = Color.DarkGreen;
+            networkStatusTitleLabel.Text = "STEP 1　活動網路　✓ 已選擇網路";
+            return;
+        }
+
+        networkReadyValueLabel.Text = "找不到可用的 LAN IPv4";
+        networkReadyValueLabel.ForeColor = Color.Firebrick;
+        networkStatusTitleLabel.Text = "STEP 1　活動網路　⚠ 尚未準備完成";
+    }
+
+    private void UpdateParticipantPresentation()
+    {
+        var count = participantGrid.Rows.Count;
+        participantsTitleLabel.Text = $"STEP 5　參與者　{count} 位已加入";
+        participantEmptyLabel.Visible = count == 0;
+    }
+
+    private static string ShortenEventId(Guid eventId)
+    {
+        var value = eventId.ToString();
+        return $"{value[..8]}…{value[^4..]}";
     }
 }

@@ -130,6 +130,93 @@ public sealed class HostDashboardLayoutTests
     }
 
     [Fact]
+    public void EventView_UsesSequentialStepsAndIndependentCopyActions()
+    {
+        using var form = new HostDashboardForm();
+        var eventView = Assert.Single(form.Controls.Find("eventManagementView", true));
+        var root = Assert.IsType<TableLayoutPanel>(Assert.Single(eventView.Controls.Find("rootLayoutPanel", true)));
+
+        var expectedRows = new[]
+        {
+            ("networkStatusPanel", 3),
+            ("eventSetupPanel", 4),
+            ("currentEventPanel", 5),
+            ("mobileJoinPanel", 6),
+            ("participantsPanel", 7)
+        };
+        foreach (var (name, row) in expectedRows)
+        {
+            var step = Assert.Single(eventView.Controls.Find(name, true));
+            Assert.Equal(root, step.Parent);
+            Assert.Equal(row, root.GetRow(step));
+        }
+
+        Assert.IsType<Button>(Assert.Single(eventView.Controls.Find("copyEventIdButton", true)));
+        Assert.IsType<Button>(Assert.Single(eventView.Controls.Find("copyJoinCodeButton", true)));
+        Assert.IsType<Button>(Assert.Single(eventView.Controls.Find("copyJoinUrlButton", true)));
+        Assert.NotEqual('\0', Assert.IsType<TextBox>(Assert.Single(eventView.Controls.Find("hostTokenTextBox", true))).PasswordChar);
+        Assert.StartsWith("STEP 1", Assert.Single(eventView.Controls.Find("networkStatusTitleLabel", true)).Text);
+        Assert.StartsWith("STEP 2", Assert.Single(eventView.Controls.Find("eventSetupTitleLabel", true)).Text);
+        Assert.StartsWith("STEP 3", Assert.Single(eventView.Controls.Find("currentEventTitleLabel", true)).Text);
+        Assert.StartsWith("STEP 4", Assert.Single(eventView.Controls.Find("mobileJoinTitleLabel", true)).Text);
+        Assert.StartsWith("STEP 5", Assert.Single(eventView.Controls.Find("participantsTitleLabel", true)).Text);
+    }
+
+    [Fact]
+    public void EventView_PresentsPrimaryActionAndParticipantEmptyState()
+    {
+        using var form = new HostDashboardForm();
+        var eventView = Assert.Single(form.Controls.Find("eventManagementView", true));
+
+        Assert.Equal("建立新活動", Assert.IsType<Button>(Assert.Single(eventView.Controls.Find("createEventButton", true))).Text);
+        Assert.Equal(PictureBoxSizeMode.Zoom, Assert.IsType<PictureBox>(Assert.Single(eventView.Controls.Find("joinQrCodePictureBox", true))).SizeMode);
+        Assert.Equal("尚未有參與者加入", Assert.IsType<Label>(Assert.Single(eventView.Controls.Find("participantEmptyLabel", true))).Text);
+    }
+
+    [Fact]
+    public void EventView_ButtonsReserveDpiSafeMinimumHeight()
+    {
+        using var form = new HostDashboardForm();
+        var eventView = Assert.Single(form.Controls.Find("eventManagementView", true));
+        var buttonNames = new[]
+        {
+            "copyEventIdButton",
+            "copyJoinCodeButton",
+            "copyJoinUrlButton",
+            "createEventButton",
+            "connectButton",
+            "refreshLanAddressesButton",
+            "testConnectionButton",
+            "installFirewallRuleButton"
+        };
+
+        foreach (var name in buttonNames)
+        {
+            var button = Assert.IsType<Button>(Assert.Single(eventView.Controls.Find(name, true)));
+            Assert.True(button.MinimumSize.Height >= 36, $"{name} does not reserve enough vertical space.");
+        }
+    }
+
+    [Fact]
+    public void EventView_ContentDrivenStepsPropagatePreferredHeightToTheScrollWorkspace()
+    {
+        using var form = new HostDashboardForm();
+        var eventView = Assert.Single(form.Controls.Find("eventManagementView", true));
+        var root = Assert.IsType<TableLayoutPanel>(Assert.Single(eventView.Controls.Find("rootLayoutPanel", true)));
+        var networkPanel = Assert.IsType<Panel>(Assert.Single(eventView.Controls.Find("networkStatusPanel", true)));
+        var networkTable = Assert.IsType<TableLayoutPanel>(Assert.Single(eventView.Controls.Find("networkTableLayoutPanel", true)));
+
+        Assert.True(((ScrollableControl)eventView).AutoScroll);
+        Assert.All(root.RowStyles.Cast<RowStyle>().Take(7), style => Assert.Equal(SizeType.AutoSize, style.SizeType));
+        Assert.Equal(SizeType.Absolute, root.RowStyles[7].SizeType);
+        Assert.True(networkPanel.AutoSize);
+        Assert.Equal(AutoSizeMode.GrowAndShrink, networkPanel.AutoSizeMode);
+        Assert.True(networkTable.AutoSize);
+        Assert.Equal(DockStyle.Top, networkTable.Dock);
+        Assert.All(networkTable.RowStyles.Cast<RowStyle>(), style => Assert.Equal(SizeType.AutoSize, style.SizeType));
+    }
+
+    [Fact]
     public void EventView_ContainsDesignerCreatedNetworkDeploymentControls()
     {
         using var form = new HostDashboardForm();

@@ -143,6 +143,7 @@ public partial class HostDashboardForm : Form
             async () =>
             {
                 await firewallRuleService.EnsureInboundRuleAsync(eventManagementView.PublicServerUrl);
+                eventManagementView.RenderFirewallReady();
                 eventManagementView.SetStatus(
                     "Windows Firewall Private profile inbound rule 已就緒，請再執行連線檢查。",
                     OperationMessageKind.Success);
@@ -157,6 +158,7 @@ public partial class HostDashboardForm : Form
         var publicServerUrl = eventManagementView.PublicServerUrl;
         var health = await client.CheckHealthAsync(publicServerUrl);
         _ = await client.ConfigurePublicBaseUrlAsync(eventManagementView.ServerUrl, publicServerUrl);
+        eventManagementView.RenderNetworkReady();
         return health;
     }
 
@@ -582,6 +584,7 @@ public partial class HostDashboardForm : Form
 
     private void RenderContext()
     {
+        eventManagementView.RenderConnectionState(connectionState);
         var selected = quizActivityView.SelectedQuestion;
         var position = GetQuestionPosition(selected);
         currentEventHeaderLabel.Text = $"Current Event：{currentEventName}";
