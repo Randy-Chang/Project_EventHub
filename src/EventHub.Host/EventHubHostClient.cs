@@ -35,6 +35,37 @@ internal sealed class EventHubHostClient : IAsyncDisposable
             ?? throw new InvalidOperationException("Server 未回傳活動資料。");
     }
 
+    public async Task<ServerHealthView> CheckHealthAsync(
+        string serverBaseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUri = ParseServerUri(serverBaseUrl);
+        using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCancellation.CancelAfter(TimeSpan.FromSeconds(5));
+        using var response = await httpClient.GetAsync(
+            new Uri(baseUri, "health"),
+            timeoutCancellation.Token);
+        await EnsureSuccessAsync(response, timeoutCancellation.Token);
+        return await response.Content.ReadFromJsonAsync<ServerHealthView>(
+            cancellationToken: timeoutCancellation.Token)
+            ?? throw new InvalidOperationException("Server Health API 未回傳預期資料。");
+    }
+
+    public async Task<NetworkStatusView> ConfigurePublicBaseUrlAsync(
+        string localServerBaseUrl,
+        string publicBaseUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUri = ParseServerUri(localServerBaseUrl);
+        using var response = await httpClient.PutAsJsonAsync(
+            new Uri(baseUri, "api/v1/network/public-base-url"),
+            new { publicBaseUrl },
+            cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return await response.Content.ReadFromJsonAsync<NetworkStatusView>(cancellationToken: cancellationToken)
+            ?? throw new InvalidOperationException("Server 未回傳網路發布設定。");
+    }
+
     public async Task ConnectAsync(
         string serverBaseUrl,
         Guid selectedEventId,

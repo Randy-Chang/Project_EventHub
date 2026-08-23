@@ -17,4 +17,11 @@
     <Compile Include="..\Shared\EventHub.Presentation\QrCodePngGenerator.cs" Link="Presentation\QrCodePngGenerator.cs" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\scripts\Configure-EventHubFirewall.ps1" Link="Tools\Configure-EventHubFirewall.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

@@ -33,8 +33,7 @@
       "launchBrowser": false,
       "applicationUrl": "http://0.0.0.0:5000",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Production",
-        "EventHub__JoinBaseUrl": "http://192.168.0.107:5000"
+        "ASPNETCORE_ENVIRONMENT": "Production"
       }
     },
     "IIS Express": {

@@ -121,6 +121,28 @@ public sealed class EventServiceTests
         Assert.Throws<InvalidOperationException>(() => new EventJoinUrlBuilder(value));
     }
 
+    [Fact]
+    public void JoinUrlBuilder_SetJoinBaseUrl_UpdatesSubsequentJoinInformation()
+    {
+        var builder = new EventJoinUrlBuilder("http://localhost:5000");
+
+        builder.SetJoinBaseUrl("http://192.168.50.25:5000/");
+
+        Assert.False(builder.IsLoopback);
+        Assert.Equal("http://192.168.50.25:5000", builder.JoinBaseUrl);
+        Assert.Equal("http://192.168.50.25:5000/join/ABC234", builder.Build("abc234"));
+    }
+
+    [Fact]
+    public void JoinUrlBuilder_SetInvalidJoinBaseUrl_PreservesPreviousValue()
+    {
+        var builder = new EventJoinUrlBuilder("http://192.168.50.25:5000");
+
+        Assert.Throws<InvalidOperationException>(() => builder.SetJoinBaseUrl("not-a-url"));
+
+        Assert.Equal("http://192.168.50.25:5000", builder.JoinBaseUrl);
+    }
+
     private static Fixture CreateFixture(params string[] codes)
     {
         var repository = new FakeEventRepository();

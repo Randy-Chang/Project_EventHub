@@ -12,6 +12,8 @@ internal enum OperationMessageKind
 
 internal partial class EventManagementView : UserControl
 {
+    private const int EventHubServerPort = 5000;
+
     public EventManagementView()
     {
         InitializeComponent();
@@ -19,8 +21,14 @@ internal partial class EventManagementView : UserControl
 
     public event EventHandler? CreateEventRequested;
     public event EventHandler? ConnectRequested;
+    public event EventHandler? RefreshLanAddressesRequested;
+    public event EventHandler? TestConnectionRequested;
+    public event EventHandler? InstallFirewallRuleRequested;
 
     public string ServerUrl => serverUrlTextBox.Text.Trim();
+    public string PublicServerUrl => lanAddressComboBox.SelectedItem is LanAddressOption selected
+        ? selected.CreatePublicBaseUrl(EventHubServerPort)
+        : throw new InvalidOperationException("找不到可用的 LAN IPv4，請確認網路線或 Wi-Fi 已連線。");
     public string EventName => eventNameTextBox.Text.Trim();
     public DateTime EventDateUtc => eventDatePicker.Value.ToUniversalTime();
     public string HostToken => hostTokenTextBox.Text;
@@ -28,6 +36,35 @@ internal partial class EventManagementView : UserControl
     public Guid EventId => Guid.TryParse(eventIdTextBox.Text, out var eventId)
         ? eventId
         : throw new InvalidOperationException("活動 ID 格式不正確。");
+
+    public void RenderLanAddresses(IReadOnlyList<LanAddressOption> addresses)
+    {
+        var previousAddress = (lanAddressComboBox.SelectedItem as LanAddressOption)?.Address;
+        lanAddressComboBox.BeginUpdate();
+        try
+        {
+            lanAddressComboBox.Items.Clear();
+            lanAddressComboBox.Items.AddRange(addresses.Cast<object>().ToArray());
+            var selectedIndex = previousAddress is null
+                ? -1
+                : addresses.ToList().FindIndex(item => item.Address.Equals(previousAddress));
+            if (selectedIndex < 0)
+            {
+                selectedIndex = addresses.ToList().FindIndex(item => item.IsPreferred);
+            }
+
+            if (selectedIndex < 0 && addresses.Count > 0)
+            {
+                selectedIndex = 0;
+            }
+
+            lanAddressComboBox.SelectedIndex = selectedIndex;
+        }
+        finally
+        {
+            lanAddressComboBox.EndUpdate();
+        }
+    }
 
     public void SetEventCredential(Guid eventId, string hostToken)
     {
@@ -112,6 +149,9 @@ internal partial class EventManagementView : UserControl
     {
         createEventButton.Enabled = !isBusy;
         connectButton.Enabled = !isBusy;
+        refreshLanAddressesButton.Enabled = !isBusy;
+        testConnectionButton.Enabled = !isBusy;
+        installFirewallRuleButton.Enabled = !isBusy;
     }
 
     protected override void Dispose(bool disposing)
@@ -126,6 +166,12 @@ internal partial class EventManagementView : UserControl
 
     private void createEventButton_Click(object? sender, EventArgs e) => CreateEventRequested?.Invoke(this, EventArgs.Empty);
     private void connectButton_Click(object? sender, EventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
+    private void refreshLanAddressesButton_Click(object? sender, EventArgs e) =>
+        RefreshLanAddressesRequested?.Invoke(this, EventArgs.Empty);
+    private void testConnectionButton_Click(object? sender, EventArgs e) =>
+        TestConnectionRequested?.Invoke(this, EventArgs.Empty);
+    private void installFirewallRuleButton_Click(object? sender, EventArgs e) =>
+        InstallFirewallRuleRequested?.Invoke(this, EventArgs.Empty);
 
     private void copyJoinUrlButton_Click(object? sender, EventArgs e)
     {

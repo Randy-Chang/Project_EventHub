@@ -82,6 +82,24 @@ public sealed class HostDashboardLayoutTests
     }
 
     [Fact]
+    public void EventView_ContainsDesignerCreatedNetworkDeploymentControls()
+    {
+        using var form = new HostDashboardForm();
+        var eventView = Assert.Single(form.Controls.Find("eventManagementView", true));
+
+        Assert.IsType<ComboBox>(Assert.Single(eventView.Controls.Find("lanAddressComboBox", true)));
+        Assert.Equal(
+            "連線檢查",
+            Assert.IsType<Button>(Assert.Single(eventView.Controls.Find("testConnectionButton", true))).Text);
+        Assert.Equal(
+            "建立 Firewall Rule",
+            Assert.IsType<Button>(Assert.Single(eventView.Controls.Find("installFirewallRuleButton", true))).Text);
+        Assert.Equal(
+            "http://localhost:5000",
+            Assert.IsType<TextBox>(Assert.Single(eventView.Controls.Find("serverUrlTextBox", true))).Text);
+    }
+
+    [Fact]
     public void QuizView_ContainsDesignerCreatedDefaultPracticeEntry()
     {
         using var form = new HostDashboardForm();

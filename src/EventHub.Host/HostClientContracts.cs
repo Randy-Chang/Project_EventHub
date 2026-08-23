@@ -73,6 +73,14 @@ internal sealed record DisplayStateView(DisplayMode Mode);
 
 internal sealed record ProblemResponse(string? Detail);
 
+internal sealed record ServerHealthView(
+    string Status,
+    DateTimeOffset ServerTimeUtc,
+    string? Version,
+    string RequestBaseUrl);
+
+internal sealed record NetworkStatusView(string PublicBaseUrl, bool IsLoopback);
+
 internal sealed record QuestionProgressNotification(
     Guid SessionId,
     int AnsweredCount,

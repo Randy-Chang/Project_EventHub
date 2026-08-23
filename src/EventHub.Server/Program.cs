@@ -15,7 +15,11 @@ using EventHub.Server.Middleware;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 builder.WebHost.UseStaticWebAssets();
 
 var joinUrlBuilder = new EventJoinUrlBuilder(
@@ -79,8 +83,15 @@ app.MapParticipantEndpoints();
 app.MapQuizEndpoints();
 app.MapQuestionBankEndpoints();
 app.MapDisplayEndpoints();
+app.MapNetworkEndpoints();
 app.MapHub<PresenceHub>("/hubs/event");
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/health", (HttpRequest request) => Results.Ok(new
+{
+    status = "ok",
+    serverTimeUtc = DateTimeOffset.UtcNow,
+    version = typeof(Program).Assembly.GetName().Version?.ToString(),
+    requestBaseUrl = $"{request.Scheme}://{request.Host}"
+}));
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

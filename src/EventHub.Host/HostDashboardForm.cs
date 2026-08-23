@@ -15,6 +15,8 @@ public partial class HostDashboardForm : Form
 {
     private readonly EventHubHostClient client = new();
     private readonly QrCodePngGenerator qrCodeGenerator = new();
+    private readonly NetworkInterfaceDiscovery networkInterfaceDiscovery = new();
+    private readonly FirewallRuleService firewallRuleService = new();
     private readonly Dictionary<Guid, ParticipantView> participants = [];
     private IReadOnlyList<QuestionBankSummaryView> questionBanks = [];
     private IReadOnlyList<QuestionBankQuestionView> questions = [];
@@ -32,6 +34,7 @@ public partial class HostDashboardForm : Form
         InitializeComponent();
         WireViewEvents();
         WireClientEvents();
+        RefreshLanAddresses();
         ShowView(HostView.Dashboard);
         RenderQuizState();
     }
@@ -40,6 +43,9 @@ public partial class HostDashboardForm : Form
     {
         eventManagementView.CreateEventRequested += createEventRequested;
         eventManagementView.ConnectRequested += connectRequested;
+        eventManagementView.RefreshLanAddressesRequested += refreshLanAddressesRequested;
+        eventManagementView.TestConnectionRequested += testConnectionRequested;
+        eventManagementView.InstallFirewallRuleRequested += installFirewallRuleRequested;
         questionBankView.ImportRequested += importQuestionBankRequested;
         questionBankView.ExportTemplateRequested += exportTemplateRequested;
         questionBankView.RefreshRequested += refreshQuestionBanksRequested;
@@ -77,6 +83,7 @@ public partial class HostDashboardForm : Form
             eventManagementView.SetBusy,
             async () =>
             {
+                await PrepareNetworkAsync();
                 ResetCurrentEventPresentation();
                 var result = await client.CreateEventAsync(
                     eventManagementView.ServerUrl,
@@ -97,10 +104,60 @@ public partial class HostDashboardForm : Form
             eventManagementView.SetBusy,
             async () =>
             {
+                await PrepareNetworkAsync();
                 ResetCurrentEventPresentation();
                 await ConnectAndRecoverAsync();
                 eventManagementView.SetStatus("已連線，正在監看活動。");
             });
+    }
+
+    private void refreshLanAddressesRequested(object? sender, EventArgs e)
+    {
+        RefreshLanAddresses();
+        eventManagementView.SetStatus("已重新掃描 LAN 網卡，請確認選取的 IPv4。", OperationMessageKind.Information);
+    }
+
+    private async void testConnectionRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            eventManagementView.SetStatus,
+            eventManagementView.SetBusy,
+            async () =>
+            {
+                var health = await PrepareNetworkAsync();
+                eventManagementView.SetStatus(
+                    $"連線檢查成功：{health.RequestBaseUrl}（Server {health.Version ?? "unknown"}）。手機請使用 {eventManagementView.PublicServerUrl}。",
+                    OperationMessageKind.Success);
+                if (connectionState == HostConnectionState.Connected)
+                {
+                    await RecoverCurrentContextAsync();
+                }
+            });
+    }
+
+    private async void installFirewallRuleRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            eventManagementView.SetStatus,
+            eventManagementView.SetBusy,
+            async () =>
+            {
+                await firewallRuleService.EnsureInboundRuleAsync(eventManagementView.PublicServerUrl);
+                eventManagementView.SetStatus(
+                    "Windows Firewall Private profile inbound rule 已就緒，請再執行連線檢查。",
+                    OperationMessageKind.Success);
+            });
+    }
+
+    private void RefreshLanAddresses() =>
+        eventManagementView.RenderLanAddresses(networkInterfaceDiscovery.GetAvailableAddresses());
+
+    private async Task<ServerHealthView> PrepareNetworkAsync()
+    {
+        var publicServerUrl = eventManagementView.PublicServerUrl;
+        var health = await client.CheckHealthAsync(publicServerUrl);
+        _ = await client.ConfigurePublicBaseUrlAsync(eventManagementView.ServerUrl, publicServerUrl);
+        return health;
     }
 
     private async Task ConnectAndRecoverAsync()
