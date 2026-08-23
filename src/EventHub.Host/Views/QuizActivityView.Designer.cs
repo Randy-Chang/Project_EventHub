@@ -242,7 +242,7 @@ partial class QuizActivityView
         optionALabel.Font = new Font("Microsoft JhengHei UI", 11F, FontStyle.Bold);
         optionALabel.Margin = new Padding(6);
         optionALabel.Name = "optionALabel";
-        optionALabel.Padding = new Padding(10);
+        optionALabel.Padding = new Padding(6);
         optionALabel.Text = "A. —";
         optionALabel.TextAlign = ContentAlignment.MiddleLeft;
         optionBLabel.AutoEllipsis = false;
@@ -250,7 +250,7 @@ partial class QuizActivityView
         optionBLabel.Font = new Font("Microsoft JhengHei UI", 11F, FontStyle.Bold);
         optionBLabel.Margin = new Padding(6);
         optionBLabel.Name = "optionBLabel";
-        optionBLabel.Padding = new Padding(10);
+        optionBLabel.Padding = new Padding(6);
         optionBLabel.Text = "B. —";
         optionBLabel.TextAlign = ContentAlignment.MiddleLeft;
         optionCLabel.AutoEllipsis = false;
@@ -258,7 +258,7 @@ partial class QuizActivityView
         optionCLabel.Font = new Font("Microsoft JhengHei UI", 11F, FontStyle.Bold);
         optionCLabel.Margin = new Padding(6);
         optionCLabel.Name = "optionCLabel";
-        optionCLabel.Padding = new Padding(10);
+        optionCLabel.Padding = new Padding(6);
         optionCLabel.Text = "C. —";
         optionCLabel.TextAlign = ContentAlignment.MiddleLeft;
         optionDLabel.AutoEllipsis = false;
@@ -266,7 +266,7 @@ partial class QuizActivityView
         optionDLabel.Font = new Font("Microsoft JhengHei UI", 11F, FontStyle.Bold);
         optionDLabel.Margin = new Padding(6);
         optionDLabel.Name = "optionDLabel";
-        optionDLabel.Padding = new Padding(10);
+        optionDLabel.Padding = new Padding(6);
         optionDLabel.Text = "D. —";
         optionDLabel.TextAlign = ContentAlignment.MiddleLeft;
         practiceCompletePanel.BackColor = Color.FromArgb(255, 248, 230);
@@ -290,7 +290,7 @@ partial class QuizActivityView
         practiceCompleteLayoutPanel.Controls.Add(practiceNotAnsweredValueLabel, 2, 3);
         practiceCompleteLayoutPanel.Dock = DockStyle.Fill;
         practiceCompleteLayoutPanel.Name = "practiceCompleteLayoutPanel";
-        practiceCompleteLayoutPanel.Padding = new Padding(30);
+        practiceCompleteLayoutPanel.Padding = new Padding(18);
         practiceCompleteLayoutPanel.RowCount = 4;
         practiceCompleteLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 35F));
         practiceCompleteLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
@@ -396,7 +396,7 @@ partial class QuizActivityView
         BackColor = Color.White;
         Controls.Add(rootLayoutPanel);
         Name = "QuizActivityView";
-        Padding = new Padding(18);
+        Padding = new Padding(12);
         Size = new Size(850, 680);
         rootLayoutPanel.ResumeLayout(false);
         contextLayoutPanel.ResumeLayout(false);

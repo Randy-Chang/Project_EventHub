@@ -101,7 +101,7 @@ partial class QuestionBankImportPreviewForm
         Controls.Add(issueGrid);
         Controls.Add(confirmButton);
         Controls.Add(cancelButton);
-        MinimumSize = new Size(760, 520);
+        MinimumSize = new Size(680, 480);
         Name = "QuestionBankImportPreviewForm";
         StartPosition = FormStartPosition.CenterParent;
         Text = "題庫 CSV 預覽";

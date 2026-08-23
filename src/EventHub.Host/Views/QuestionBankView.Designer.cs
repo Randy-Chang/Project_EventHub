@@ -43,7 +43,7 @@ partial class QuestionBankView
         statusLabel.Name = "statusLabel";
         titleLabel.Dock = DockStyle.Top;
         titleLabel.Font = new Font("Microsoft JhengHei UI", 20F, FontStyle.Bold);
-        titleLabel.Height = 58;
+        titleLabel.Height = 48;
         titleLabel.Text = "題庫管理";
         commandPanel.Controls.Add(importButton);
         commandPanel.Controls.Add(exportTemplateButton);
@@ -52,8 +52,8 @@ partial class QuestionBankView
         commandPanel.Controls.Add(previousButton);
         commandPanel.Controls.Add(nextButton);
         commandPanel.Dock = DockStyle.Top;
-        commandPanel.Height = 48;
-        commandPanel.WrapContents = false;
+        commandPanel.Height = 82;
+        commandPanel.WrapContents = true;
         importButton.Size = new Size(105, 34);
         importButton.Text = "匯入 CSV";
         importButton.Click += importButton_Click;
@@ -65,7 +65,7 @@ partial class QuestionBankView
         refreshButton.Click += refreshButton_Click;
         questionBankComboBox.DropDownStyle = ComboBoxStyle.DropDownList;
         questionBankComboBox.Margin = new Padding(16, 5, 4, 3);
-        questionBankComboBox.Size = new Size(260, 23);
+        questionBankComboBox.Size = new Size(220, 25);
         questionBankComboBox.SelectedIndexChanged += questionBankComboBox_SelectedIndexChanged;
         previousButton.Size = new Size(85, 34);
         previousButton.Text = "上一題";
@@ -114,7 +114,7 @@ partial class QuestionBankView
         Controls.Add(commandPanel);
         Controls.Add(titleLabel);
         Name = "QuestionBankView";
-        Padding = new Padding(24);
+        Padding = new Padding(16);
         Size = new Size(984, 728);
         commandPanel.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)questionGrid).EndInit();

@@ -78,11 +78,11 @@ partial class EventManagementView
         participantGrid.Name = "participantGrid";
         titleLabel.Dock = DockStyle.Top;
         titleLabel.Font = new Font("Microsoft JhengHei UI", 20F, FontStyle.Bold);
-        titleLabel.Height = 58;
+        titleLabel.Height = 48;
         titleLabel.Text = "活動與參與者";
         setupGroupBox.Controls.Add(setupTableLayoutPanel);
         setupGroupBox.Dock = DockStyle.Top;
-        setupGroupBox.Height = 225;
+        setupGroupBox.Height = 205;
         setupGroupBox.Text = "活動電腦與連線";
         setupTableLayoutPanel.ColumnCount = 4;
         setupTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 95F));
@@ -157,7 +157,7 @@ partial class EventManagementView
         operationMessagePanel.BackColor = Color.FromArgb(241, 248, 245);
         operationMessagePanel.Controls.Add(statusLabel);
         operationMessagePanel.Dock = DockStyle.Top;
-        operationMessagePanel.Height = 62;
+        operationMessagePanel.Height = 50;
         operationMessagePanel.Name = "operationMessagePanel";
         operationMessagePanel.Padding = new Padding(12, 8, 12, 8);
         statusLabel.AutoEllipsis = false;
@@ -167,7 +167,7 @@ partial class EventManagementView
         statusLabel.TextAlign = ContentAlignment.MiddleLeft;
         joinGroupBox.Controls.Add(joinTableLayoutPanel);
         joinGroupBox.Dock = DockStyle.Top;
-        joinGroupBox.Height = 210;
+        joinGroupBox.Height = 185;
         joinGroupBox.Text = "加入資訊";
         joinTableLayoutPanel.ColumnCount = 2;
         joinTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 72F));
@@ -216,6 +216,8 @@ partial class EventManagementView
         participantGrid.RowHeadersVisible = false;
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
+        AutoScroll = true;
+        AutoScrollMinSize = new Size(0, 570);
         BackColor = Color.White;
         Controls.Add(participantsGroupBox);
         Controls.Add(joinGroupBox);
@@ -223,7 +225,7 @@ partial class EventManagementView
         Controls.Add(setupGroupBox);
         Controls.Add(titleLabel);
         Name = "EventManagementView";
-        Padding = new Padding(24);
+        Padding = new Padding(16);
         Size = new Size(984, 728);
         setupGroupBox.ResumeLayout(false);
         setupTableLayoutPanel.ResumeLayout(false);

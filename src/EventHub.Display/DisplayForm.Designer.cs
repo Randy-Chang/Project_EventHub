@@ -778,13 +778,13 @@ partial class DisplayForm
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.FromArgb(7, 20, 38);
-        ClientSize = new Size(1280, 720);
+        ClientSize = new Size(1152, 648);
         Controls.Add(presentationPanel);
         Controls.Add(connectionStatusLabel);
         Controls.Add(setupPanel);
         Font = new Font("Microsoft JhengHei UI", 9F);
         KeyPreview = true;
-        MinimumSize = new Size(1024, 640);
+        MinimumSize = new Size(960, 540);
         Name = "DisplayForm";
         StartPosition = FormStartPosition.CenterScreen;
         Text = "EventHub Display";

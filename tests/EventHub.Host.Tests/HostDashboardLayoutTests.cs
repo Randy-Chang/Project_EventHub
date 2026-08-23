@@ -39,8 +39,35 @@ public sealed class HostDashboardLayoutTests
         Assert.True(header.Height > 0);
         Assert.Single(form.Controls.Find("liveMonitorView", true));
         Assert.Single(form.Controls.Find("actionTableLayoutPanel", true));
-        Assert.True(form.MinimumSize.Width >= 1024);
-        Assert.True(form.MinimumSize.Height >= 700);
+        Assert.Equal(new Size(1024, 640), form.MinimumSize);
+    }
+
+    [Fact]
+    public void HostShell_UsesDpiResilientSizingAndDockedNavigation()
+    {
+        using var form = new HostDashboardForm();
+
+        Assert.True(form.ClientSize.Width <= 1180);
+        Assert.True(form.ClientSize.Height <= 680);
+        Assert.All(
+            new[]
+            {
+                "dashboardNavigationButton",
+                "eventNavigationButton",
+                "questionBankNavigationButton",
+                "quizNavigationButton"
+            },
+            name => Assert.Equal(
+                DockStyle.Top,
+                Assert.Single(form.Controls.Find(name, true)).Dock));
+
+        var eventView = Assert.IsAssignableFrom<ScrollableControl>(
+            Assert.Single(form.Controls.Find("eventManagementView", true)));
+        Assert.True(eventView.AutoScroll);
+
+        var commandPanel = Assert.IsType<FlowLayoutPanel>(
+            Assert.Single(form.Controls.Find("commandPanel", true)));
+        Assert.True(commandPanel.WrapContents);
     }
 
     [Fact]

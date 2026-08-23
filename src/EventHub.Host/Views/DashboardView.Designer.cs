@@ -47,12 +47,12 @@ partial class DashboardView
         displayTitleLabel.Name = "displayTitleLabel";
         displayValueLabel.Name = "displayValueLabel";
         titleLabel.Dock = DockStyle.Top;
-        titleLabel.Font = new Font("Microsoft JhengHei UI", 22F, FontStyle.Bold);
+        titleLabel.Font = new Font("Microsoft JhengHei UI", 20F, FontStyle.Bold);
         titleLabel.Location = new Point(32, 28);
         titleLabel.Margin = new Padding(32, 28, 32, 16);
         titleLabel.Name = "titleLabel";
-        titleLabel.Padding = new Padding(0, 20, 0, 0);
-        titleLabel.Size = new Size(920, 72);
+        titleLabel.Padding = new Padding(0, 12, 0, 0);
+        titleLabel.Size = new Size(920, 60);
         titleLabel.Text = "活動控制台";
         cardsTableLayoutPanel.ColumnCount = 2;
         cardsTableLayoutPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
@@ -73,9 +73,9 @@ partial class DashboardView
         cardsTableLayoutPanel.Controls.Add(displayValueLabel, 0, 7);
         cardsTableLayoutPanel.Dock = DockStyle.Fill;
         cardsTableLayoutPanel.Location = new Point(32, 100);
-        cardsTableLayoutPanel.Margin = new Padding(32);
+        cardsTableLayoutPanel.Margin = new Padding(20);
         cardsTableLayoutPanel.Name = "cardsTableLayoutPanel";
-        cardsTableLayoutPanel.Padding = new Padding(24);
+        cardsTableLayoutPanel.Padding = new Padding(16);
         cardsTableLayoutPanel.RowCount = 8;
         cardsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 30F));
         cardsTableLayoutPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 72F));
@@ -106,7 +106,7 @@ partial class DashboardView
         Controls.Add(cardsTableLayoutPanel);
         Controls.Add(titleLabel);
         Name = "DashboardView";
-        Padding = new Padding(32, 28, 32, 28);
+        Padding = new Padding(20);
         Size = new Size(984, 728);
         cardsTableLayoutPanel.ResumeLayout(false);
         ResumeLayout(false);
