@@ -16,6 +16,7 @@ partial class HostDashboardForm
 
     private void InitializeComponent()
     {
+        System.ComponentModel.ComponentResourceManager resources = new(typeof(HostDashboardForm));
         shellTableLayoutPanel = new TableLayoutPanel();
         headerTableLayoutPanel = new TableLayoutPanel();
         currentEventHeaderLabel = new Label();
@@ -266,6 +267,7 @@ partial class HostDashboardForm
         AutoScaleMode = AutoScaleMode.Dpi;
         ClientSize = new Size(1180, 680);
         Controls.Add(shellTableLayoutPanel);
+        Icon = (Icon)resources.GetObject("$this.Icon");
         MinimumSize = new Size(1024, 640);
         Name = "HostDashboardForm";
         StartPosition = FormStartPosition.CenterScreen;

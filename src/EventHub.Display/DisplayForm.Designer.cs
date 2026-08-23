@@ -20,6 +20,7 @@ partial class DisplayForm
 
     private void InitializeComponent()
     {
+        System.ComponentModel.ComponentResourceManager resources = new(typeof(DisplayForm));
         setupPanel = new Panel();
         connectButton = new Button();
         fullscreenCheckBox = new CheckBox();
@@ -783,6 +784,7 @@ partial class DisplayForm
         Controls.Add(connectionStatusLabel);
         Controls.Add(setupPanel);
         Font = new Font("Microsoft JhengHei UI", 9F);
+        Icon = (Icon)resources.GetObject("$this.Icon");
         KeyPreview = true;
         MinimumSize = new Size(960, 540);
         Name = "DisplayForm";
