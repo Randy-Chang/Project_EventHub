@@ -24,7 +24,7 @@ public sealed class Event
         CreatedAtUtc = createdAtUtc;
         State = EventState.Draft;
         DisplayMode = DisplayMode.Waiting;
-        IsJoinOpen = true;
+        IsJoinOpen = false;
         Version = 1;
     }
 
@@ -82,9 +82,14 @@ public sealed class Event
 
     public void SetJoinOpen(bool isOpen)
     {
-        if (State is EventState.Ended or EventState.Cancelled)
+        if (State == EventState.Completed)
         {
-            throw new DomainValidationException("已結束或取消的活動不可變更加入設定。");
+            throw new DomainValidationException("已完成的活動不可變更加入設定。");
+        }
+
+        if (isOpen && State == EventState.Draft)
+        {
+            throw new DomainValidationException("活動就緒後才能開放加入。");
         }
 
         IsJoinOpen = isOpen;
@@ -97,25 +102,36 @@ public sealed class Event
         Version++;
     }
 
-    public void Start()
+    public void MarkReady()
     {
-        if (State is not (EventState.Draft or EventState.Ready))
+        if (State != EventState.Draft)
         {
-            throw new DomainValidationException("只有 Draft 或 Ready 活動可以開始。");
+            throw new DomainValidationException("只有草稿中的活動可以標記為就緒。");
         }
 
-        State = EventState.Running;
+        State = EventState.Ready;
         Version++;
     }
 
-    public void End()
+    public void Activate()
     {
-        if (State != EventState.Running)
+        if (State != EventState.Ready)
         {
-            throw new DomainValidationException("只有進行中的活動可以結束。");
+            throw new DomainValidationException("只有已就緒的活動可以開始。");
         }
 
-        State = EventState.Ended;
+        State = EventState.Active;
+        Version++;
+    }
+
+    public void Complete()
+    {
+        if (State != EventState.Active)
+        {
+            throw new DomainValidationException("只有進行中的活動可以完成。");
+        }
+
+        State = EventState.Completed;
         IsJoinOpen = false;
         Version++;
     }

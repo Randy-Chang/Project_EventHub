@@ -23,6 +23,9 @@ internal partial class EventManagementView : UserControl
 
     public event EventHandler? CreateEventRequested;
     public event EventHandler? ConnectRequested;
+    public event EventHandler? ResumeRecentRequested;
+    public event EventHandler? ForgetRecentRequested;
+    public event EventHandler? ToggleJoinPolicyRequested;
     public event EventHandler? RefreshLanAddressesRequested;
     public event EventHandler? TestConnectionRequested;
     public event EventHandler? InstallFirewallRuleRequested;
@@ -79,6 +82,26 @@ internal partial class EventManagementView : UserControl
         eventIdToolTip.SetToolTip(currentEventIdValueLabel, eventId.ToString());
     }
 
+    public void SetResumeContext(RecentHostSession session)
+    {
+        serverUrlTextBox.Text = session.ServerUrl;
+        SetEventCredential(session.EventId, session.HostToken);
+    }
+
+    public void RenderRecentSession(RecentHostSession? session)
+    {
+        recentSessionLabel.Text = session is null
+            ? "沒有可繼續主持的最近活動"
+            : $"最近活動：{session.EventName}　上次連線 {session.LastConnectedAtUtc.ToLocalTime():yyyy/MM/dd HH:mm}";
+        resumeRecentButton.Visible = session is not null;
+        forgetRecentButton.Visible = session is not null;
+    }
+
+    public void SetJoinPolicyAvailability(bool enabled)
+    {
+        toggleJoinPolicyButton.Enabled = enabled;
+    }
+
     public void RenderJoinInfo(EventJoinInfoView joinInfo, Image qrCode)
     {
         eventIdTextBox.Text = joinInfo.EventId.ToString();
@@ -87,13 +110,21 @@ internal partial class EventManagementView : UserControl
         currentEventIdValueLabel.Text = ShortenEventId(joinInfo.EventId);
         eventIdToolTip.SetToolTip(currentEventIdValueLabel, joinInfo.EventId.ToString());
         currentJoinCode = joinInfo.JoinCode;
+        joinPolicyValueLabel.Text = joinInfo.IsJoinOpen ? "開放中" : "已關閉";
+        joinPolicyValueLabel.ForeColor = joinInfo.IsJoinOpen ? Color.DarkGreen : Color.Firebrick;
+        toggleJoinPolicyButton.Text = joinInfo.IsJoinOpen ? "關閉報到" : "開放報到";
+        toggleJoinPolicyButton.Enabled = true;
         joinCodeValueLabel.Text = string.Join(" ", joinInfo.JoinCode.ToCharArray());
         mobileJoinTitleLabel.Text = "STEP 4　手機加入　✓ 加入資訊已準備";
         joinUrlTextBox.Text = joinInfo.JoinUrl;
-        joinUrlWarningLabel.Text = joinInfo.IsLoopback
-            ? "警告：目前使用 localhost，其他手機無法連線。"
-            : "同一 Wi-Fi 的手機可掃描 QR Code 加入。";
-        joinUrlWarningLabel.ForeColor = joinInfo.IsLoopback ? Color.Firebrick : Color.DarkGreen;
+        joinUrlWarningLabel.Text = !joinInfo.IsJoinOpen
+            ? "目前尚未開放加入；請先執行「開放參與者加入」。"
+            : joinInfo.IsLoopback
+                ? "警告：目前使用 localhost，其他手機無法連線。"
+                : "同一 Wi-Fi 的手機可掃描 QR Code 加入。";
+        joinUrlWarningLabel.ForeColor = !joinInfo.IsJoinOpen || joinInfo.IsLoopback
+            ? Color.Firebrick
+            : Color.DarkGreen;
         var previous = joinQrCodePictureBox.Image;
         joinQrCodePictureBox.Image = qrCode;
         previous?.Dispose();
@@ -116,6 +147,10 @@ internal partial class EventManagementView : UserControl
         currentEventDateValueLabel.Text = "—";
         currentEventIdValueLabel.Text = "—";
         currentEventStatusValueLabel.Text = "未連線";
+        joinPolicyValueLabel.Text = "尚未開放";
+        joinPolicyValueLabel.ForeColor = SystemColors.ControlText;
+        toggleJoinPolicyButton.Text = "開放報到";
+        toggleJoinPolicyButton.Enabled = false;
         eventSetupTitleLabel.Text = "STEP 2　建立或連線活動　○ 尚未完成";
         mobileJoinTitleLabel.Text = "STEP 4　手機加入　○ 尚未準備";
         eventIdToolTip.SetToolTip(currentEventIdValueLabel, null);
@@ -222,6 +257,12 @@ internal partial class EventManagementView : UserControl
 
     private void createEventButton_Click(object? sender, EventArgs e) => CreateEventRequested?.Invoke(this, EventArgs.Empty);
     private void connectButton_Click(object? sender, EventArgs e) => ConnectRequested?.Invoke(this, EventArgs.Empty);
+    private void resumeRecentButton_Click(object? sender, EventArgs e) =>
+        ResumeRecentRequested?.Invoke(this, EventArgs.Empty);
+    private void forgetRecentButton_Click(object? sender, EventArgs e) =>
+        ForgetRecentRequested?.Invoke(this, EventArgs.Empty);
+    private void toggleJoinPolicyButton_Click(object? sender, EventArgs e) =>
+        ToggleJoinPolicyRequested?.Invoke(this, EventArgs.Empty);
     private void refreshLanAddressesButton_Click(object? sender, EventArgs e) =>
         RefreshLanAddressesRequested?.Invoke(this, EventArgs.Empty);
     private void testConnectionButton_Click(object? sender, EventArgs e) =>

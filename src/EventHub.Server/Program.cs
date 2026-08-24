@@ -60,6 +60,8 @@ builder.Services.AddScoped<QuestionBankService>();
 builder.Services.AddSingleton<QuestionBankValidator>();
 builder.Services.AddSingleton<DefaultPracticeQuestionProvider>();
 builder.Services.AddScoped<DisplayService>();
+builder.Services.AddScoped<HostSessionService>();
+builder.Services.AddScoped<EventRecoveryService>();
 
 var app = builder.Build();
 
@@ -99,6 +101,14 @@ await using (var scope = app.Services.CreateAsyncScope())
     await dbContext.Database.MigrateAsync();
     await dbContext.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
     await dbContext.Database.ExecuteSqlRawAsync("PRAGMA busy_timeout=30000;");
+    var recoveryService = scope.ServiceProvider.GetRequiredService<EventRecoveryService>();
+    var recoveredSessions = await recoveryService.RecoverExpiredQuestionsAsync(CancellationToken.None);
+    foreach (var sessionId in recoveredSessions)
+    {
+        app.Logger.LogWarning(
+            "Recovered expired question session {QuestionSessionId} as Closed during server startup.",
+            sessionId);
+    }
 }
 
 await app.RunAsync();

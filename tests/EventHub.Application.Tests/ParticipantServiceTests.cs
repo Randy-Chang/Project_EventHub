@@ -50,6 +50,36 @@ public sealed class ParticipantServiceTests
                 CancellationToken.None));
     }
 
+    [Fact]
+    public async Task Join_ExistingSession_WhenJoinIsClosed_RestoresParticipant()
+    {
+        var fixture = CreateFixture();
+        const string token = "existing-participant-token-with-32-characters";
+        var first = await fixture.Service.JoinAsync(
+            new JoinParticipantCommand(fixture.EventId, "Amy", null, null, null, null, token),
+            CancellationToken.None);
+        fixture.Event.SetJoinOpen(false);
+
+        var restored = await fixture.Service.JoinAsync(
+            new JoinParticipantCommand(fixture.EventId, "Ignored", null, null, null, null, token),
+            CancellationToken.None);
+
+        Assert.False(restored.IsNew);
+        Assert.Equal(first.Participant.Id, restored.Participant.Id);
+    }
+
+    [Fact]
+    public async Task Join_NewParticipant_WhenJoinIsClosed_IsRejected()
+    {
+        var fixture = CreateFixture();
+        fixture.Event.SetJoinOpen(false);
+
+        await Assert.ThrowsAsync<EventHub.Domain.Common.DomainValidationException>(() =>
+            fixture.Service.JoinAsync(
+                new JoinParticipantCommand(fixture.EventId, "New", null, null, null, null, null),
+                CancellationToken.None));
+    }
+
     private static Fixture CreateFixture()
     {
         var credentialService = new FakeCredentialService();
@@ -62,6 +92,8 @@ public sealed class ParticipantServiceTests
             Now.AddDays(1),
             credentialService.HashToken("host-token"),
             Now);
+        eventItem.MarkReady();
+        eventItem.SetJoinOpen(true);
         eventRepository.Item = eventItem;
         var eventService = new EventService(
             eventRepository,
@@ -75,11 +107,12 @@ public sealed class ParticipantServiceTests
             credentialService,
             eventService,
             new FixedTimeProvider(Now));
-        return new Fixture(eventItem.Id, service, participantRepository);
+        return new Fixture(eventItem.Id, eventItem, service, participantRepository);
     }
 
     private sealed record Fixture(
         Guid EventId,
+        DomainEvent Event,
         ParticipantService Service,
         FakeParticipantRepository Participants);
 

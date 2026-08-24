@@ -476,6 +476,8 @@ public sealed class QuizServiceTests
             Now.AddDays(1),
             credentials.HashToken("host-token"),
             Now);
+        eventItem.MarkReady();
+        eventItem.Activate();
         eventRepository.Item = eventItem;
 
         var participant1 = CreateParticipant(eventItem.Id, "Amy", "participant-1-token", credentials);

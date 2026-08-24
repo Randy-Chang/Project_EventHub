@@ -24,6 +24,7 @@ public sealed class QuestionBankService(
         CancellationToken cancellationToken)
     {
         await EnsureAuthorizedAsync(eventId, hostToken, cancellationToken);
+        await eventService.EnsureNotCompletedAsync(eventId, cancellationToken);
         var sizeIssue = ValidateFile(fileName, fileLength);
         if (sizeIssue is not null)
         {
@@ -85,6 +86,7 @@ public sealed class QuestionBankService(
         CancellationToken cancellationToken)
     {
         await EnsureAuthorizedAsync(eventId, hostToken, cancellationToken);
+        await eventService.EnsureNotCompletedAsync(eventId, cancellationToken);
         var existing = (await repository.ListAsync(eventId, cancellationToken))
             .FirstOrDefault(item => item.Title == DefaultPracticeQuestionProvider.QuizTitle);
         if (existing is not null)

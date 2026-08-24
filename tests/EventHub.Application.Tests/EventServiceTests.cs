@@ -72,6 +72,8 @@ public sealed class EventServiceTests
     {
         var fixture = CreateFixture("ABC234");
         var eventItem = CreateEvent("Family Day", "ABC234");
+        eventItem.MarkReady();
+        eventItem.SetJoinOpen(true);
         fixture.Repository.Items.Add(eventItem);
 
         var result = await fixture.Service.ResolveJoinCodeAsync(" abc234 ", CancellationToken.None);
@@ -141,6 +143,42 @@ public sealed class EventServiceTests
         Assert.Throws<InvalidOperationException>(() => builder.SetJoinBaseUrl("not-a-url"));
 
         Assert.Equal("http://192.168.50.25:5000", builder.JoinBaseUrl);
+    }
+
+    [Fact]
+    public async Task ChangeState_AdvancesLifecycleAndCompleteClosesJoin()
+    {
+        var fixture = CreateFixture("ABC234");
+        var eventItem = DomainEvent.Create("Event", "ABC234", Now, "hash:host-token", Now);
+        fixture.Repository.Items.Add(eventItem);
+
+        _ = await fixture.Service.ChangeStateAsync(
+            new ChangeEventStateCommand(eventItem.Id, "host-token", EventState.Ready),
+            CancellationToken.None);
+        _ = await fixture.Service.ChangeJoinPolicyAsync(
+            new ChangeJoinPolicyCommand(eventItem.Id, "host-token", true),
+            CancellationToken.None);
+        _ = await fixture.Service.ChangeStateAsync(
+            new ChangeEventStateCommand(eventItem.Id, "host-token", EventState.Active),
+            CancellationToken.None);
+        var completed = await fixture.Service.ChangeStateAsync(
+            new ChangeEventStateCommand(eventItem.Id, "host-token", EventState.Completed),
+            CancellationToken.None);
+
+        Assert.Equal(EventState.Completed, completed.State);
+        Assert.False(completed.IsJoinOpen);
+    }
+
+    [Fact]
+    public async Task ChangeState_InvalidHostToken_IsRejected()
+    {
+        var fixture = CreateFixture("ABC234");
+        var eventItem = DomainEvent.Create("Event", "ABC234", Now, "hash:host-token", Now);
+        fixture.Repository.Items.Add(eventItem);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => fixture.Service.ChangeStateAsync(
+            new ChangeEventStateCommand(eventItem.Id, "wrong", EventState.Ready),
+            CancellationToken.None));
     }
 
     private static Fixture CreateFixture(params string[] codes)

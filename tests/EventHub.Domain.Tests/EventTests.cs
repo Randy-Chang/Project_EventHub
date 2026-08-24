@@ -7,7 +7,7 @@ namespace EventHub.Domain.Tests;
 public sealed class EventTests
 {
     [Fact]
-    public void Create_NormalizesNameAndOpensJoin()
+    public void Create_NormalizesNameAndStartsAsClosedDraft()
     {
         var eventItem = DomainEvent.Create(
             "  年終晚會  ",
@@ -20,7 +20,7 @@ public sealed class EventTests
         Assert.Equal("8K3F2A", eventItem.JoinCode);
         Assert.Equal(EventState.Draft, eventItem.State);
         Assert.Equal(DisplayMode.Waiting, eventItem.DisplayMode);
-        Assert.True(eventItem.IsJoinOpen);
+        Assert.False(eventItem.IsJoinOpen);
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public sealed class EventTests
     }
 
     [Fact]
-    public void End_ClosesJoinAndPreventsReopening()
+    public void Lifecycle_AdvancesInOrderAndCompletedPreventsReopening()
     {
         var eventItem = DomainEvent.Create(
             "家庭日",
@@ -66,12 +66,31 @@ public sealed class EventTests
             DateTimeOffset.UtcNow,
             "credential-hash",
             DateTimeOffset.UtcNow);
-        eventItem.Start();
+        eventItem.MarkReady();
+        eventItem.SetJoinOpen(true);
+        eventItem.Activate();
 
-        eventItem.End();
+        eventItem.Complete();
 
-        Assert.Equal(EventState.Ended, eventItem.State);
+        Assert.Equal(EventState.Completed, eventItem.State);
         Assert.False(eventItem.IsJoinOpen);
         Assert.Throws<DomainValidationException>(() => eventItem.SetJoinOpen(true));
+    }
+
+    [Fact]
+    public void Lifecycle_RejectsSkippedAndReverseTransitions()
+    {
+        var eventItem = DomainEvent.Create(
+            "家庭日",
+            "ABC234",
+            DateTimeOffset.UtcNow,
+            "credential-hash",
+            DateTimeOffset.UtcNow);
+
+        Assert.Throws<DomainValidationException>(eventItem.Activate);
+        eventItem.MarkReady();
+        Assert.Throws<DomainValidationException>(eventItem.MarkReady);
+        eventItem.Activate();
+        Assert.Throws<DomainValidationException>(eventItem.Activate);
     }
 }

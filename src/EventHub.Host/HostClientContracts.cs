@@ -7,7 +7,13 @@ internal sealed record CreateEventResult(
     string HostToken,
     EventJoinInfoView JoinInfo);
 
-internal sealed record EventView(Guid Id, string Name);
+internal sealed record EventView(
+    Guid Id,
+    string Name,
+    string JoinCode,
+    DateTimeOffset EventDateUtc,
+    EventState State,
+    bool IsJoinOpen);
 
 internal sealed record EventJoinInfoView(
     Guid EventId,
@@ -71,6 +77,19 @@ internal sealed record QuizLeaderboardEntryView(
 
 internal sealed record DisplayStateView(DisplayMode Mode);
 
+internal sealed record HostSessionSnapshotView(
+    EventView Event,
+    EventJoinInfoView JoinInfo,
+    IReadOnlyList<ParticipantView> Participants,
+    IReadOnlyList<QuestionBankSummaryView> QuestionBanks,
+    QuizStateView Quiz,
+    DisplayStateView Display,
+    QuizStatisticsView? Statistics,
+    QuizLeaderboardView? Leaderboard,
+    HostRecommendedAction RecommendedAction,
+    bool WasDeadlineRecovered,
+    DateTimeOffset ServerTimeUtc);
+
 internal sealed record ProblemResponse(string? Detail);
 
 internal sealed record ServerHealthView(
@@ -111,6 +130,28 @@ internal enum DisplayMode
     Question,
     Result,
     Leaderboard
+}
+
+internal enum EventState
+{
+    Draft,
+    Ready,
+    Active,
+    Completed
+}
+
+internal enum HostRecommendedAction
+{
+    PrepareEvent,
+    OpenJoining,
+    StartEvent,
+    StartQuestion,
+    CloseQuestion,
+    RevealAnswer,
+    ContinueQuiz,
+    ShowFinalLeaderboard,
+    CompleteEvent,
+    ViewCompletedEvent
 }
 
 internal enum HostConnectionState

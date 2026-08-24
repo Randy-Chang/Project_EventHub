@@ -26,6 +26,9 @@ public interface IQuizRepository
 
     Task<QuizQuestionSession?> GetCurrentSessionAsync(Guid eventId, CancellationToken cancellationToken);
 
+    Task<IReadOnlyList<QuizQuestionSession>> ListOpenSessionsAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<QuizQuestionSession>>([]);
+
     Task AddSessionAsync(QuizQuestionSession session, CancellationToken cancellationToken);
 
     Task UpdateSessionAsync(QuizQuestionSession session, CancellationToken cancellationToken);

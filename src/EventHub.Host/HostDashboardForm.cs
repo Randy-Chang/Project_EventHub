@@ -17,6 +17,7 @@ public partial class HostDashboardForm : Form
     private readonly QrCodePngGenerator qrCodeGenerator = new();
     private readonly NetworkInterfaceDiscovery networkInterfaceDiscovery = new();
     private readonly FirewallRuleService firewallRuleService = new();
+    private readonly HostSessionStore hostSessionStore = new();
     private readonly Dictionary<Guid, ParticipantView> participants = [];
     private IReadOnlyList<QuestionBankSummaryView> questionBanks = [];
     private IReadOnlyList<QuestionBankQuestionView> questions = [];
@@ -28,6 +29,10 @@ public partial class HostDashboardForm : Form
     private DisplayMode displayMode = DisplayMode.Waiting;
     private CancellationTokenSource? deadlineRecoveryCancellation;
     private QuizPrimaryAction currentPrimaryAction;
+    private RecentHostSession? recentSession;
+    private EventState eventState = EventState.Draft;
+    private bool isJoinOpen;
+    private HostRecommendedAction recommendedAction = HostRecommendedAction.PrepareEvent;
 
     public HostDashboardForm()
     {
@@ -37,12 +42,16 @@ public partial class HostDashboardForm : Form
         RefreshLanAddresses();
         ShowView(HostView.Dashboard);
         RenderQuizState();
+        Shown += HostDashboardForm_Shown;
     }
 
     private void WireViewEvents()
     {
         eventManagementView.CreateEventRequested += createEventRequested;
         eventManagementView.ConnectRequested += connectRequested;
+        eventManagementView.ResumeRecentRequested += resumeRecentRequested;
+        eventManagementView.ForgetRecentRequested += forgetRecentRequested;
+        eventManagementView.ToggleJoinPolicyRequested += toggleJoinPolicyRequested;
         eventManagementView.RefreshLanAddressesRequested += refreshLanAddressesRequested;
         eventManagementView.TestConnectionRequested += testConnectionRequested;
         eventManagementView.InstallFirewallRuleRequested += installFirewallRuleRequested;
@@ -173,10 +182,14 @@ public partial class HostDashboardForm : Form
 
     private async Task RecoverCurrentContextAsync()
     {
-        var joinInfo = await client.GetJoinInfoAsync();
-        currentEventName = joinInfo.EventName;
-        RenderJoinInfo(joinInfo);
-        var participantItems = await client.GetParticipantsAsync();
+        var snapshot = await client.GetHostSessionAsync();
+        currentEventName = snapshot.Event.Name;
+        eventState = snapshot.Event.State;
+        isJoinOpen = snapshot.Event.IsJoinOpen;
+        recommendedAction = snapshot.RecommendedAction;
+        RenderJoinInfo(snapshot.JoinInfo);
+        eventManagementView.SetJoinPolicyAvailability(eventState is EventState.Ready or EventState.Active);
+        var participantItems = snapshot.Participants;
         participants.Clear();
         foreach (var participant in participantItems)
         {
@@ -184,12 +197,13 @@ public partial class HostDashboardForm : Form
         }
 
         eventManagementView.RenderParticipants(participantItems);
-        quizState = await client.GetQuizStateAsync();
+        quizState = snapshot.Quiz;
         selectedQuestionId = quizState.QuestionId ?? selectedQuestionId;
-        var displayState = await client.GetDisplayStateAsync();
-        displayMode = displayState.Mode;
+        displayMode = snapshot.Display.Mode;
         liveMonitorView.RenderDisplayMode(displayMode);
-        await LoadQuestionBanksAsync(selectedQuestionId: selectedQuestionId);
+        questionBanks = snapshot.QuestionBanks;
+        questionBankView.RenderBanks(questionBanks, questionBankView.SelectedBank?.Id);
+        await LoadSelectedBankQuestionsAsync(selectedQuestionId);
         RenderQuizState();
         if (quizState.State == QuizState.Revealed)
         {
@@ -197,6 +211,94 @@ public partial class HostDashboardForm : Form
         }
 
         RenderContext();
+        recentSession = new RecentHostSession(
+            eventManagementView.ServerUrl,
+            snapshot.Event.Id,
+            snapshot.Event.Name,
+            eventManagementView.HostToken,
+            DateTimeOffset.UtcNow);
+        await hostSessionStore.SaveAsync(recentSession);
+        eventManagementView.RenderRecentSession(recentSession);
+        if (snapshot.WasDeadlineRecovered)
+        {
+            eventManagementView.SetStatus(
+                "活動中斷期間題目已截止，Server 已自動關閉作答。",
+                OperationMessageKind.Warning);
+        }
+    }
+
+    private async void HostDashboardForm_Shown(object? sender, EventArgs e)
+    {
+        recentSession = await hostSessionStore.TryLoadAsync();
+        eventManagementView.RenderRecentSession(recentSession);
+        ShowView(HostView.Event);
+    }
+
+    private async void resumeRecentRequested(object? sender, EventArgs e)
+    {
+        if (recentSession is null)
+        {
+            return;
+        }
+
+        eventManagementView.SetResumeContext(recentSession);
+        await RunViewOperationAsync(
+            eventManagementView.SetStatus,
+            eventManagementView.SetBusy,
+            async () =>
+            {
+                await PrepareNetworkAsync();
+                await ConnectAndRecoverAsync();
+                var deadlineMessage = quizState.State == QuizState.Closed
+                    ? "題目已關閉，等待公布答案。"
+                    : $"題目狀態：{quizState.State}";
+                MessageBox.Show(
+                    this,
+                    $"活動已恢復\r\n\r\n活動：{currentEventName}\r\n活動狀態：{eventState}\r\n{deadlineMessage}\r\n已作答：{quizState.AnsweredCount} / {quizState.ParticipantCount}\r\n在線：{quizState.OnlineCount}\r\n投影幕：{displayMode}\r\n\r\n所有作答與分數均已從 Server 恢復。",
+                    "繼續主持",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                ShowView(HostView.Dashboard);
+            });
+    }
+
+    private async void forgetRecentRequested(object? sender, EventArgs e)
+    {
+        var result = MessageBox.Show(
+            this,
+            "這只會清除本機保存的連線資訊，不會刪除 Server 上的活動、答案或分數。\r\n\r\n要從這台電腦移除此活動嗎？",
+            "從這台電腦移除",
+            MessageBoxButtons.OKCancel,
+            MessageBoxIcon.Warning);
+        if (result != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            await hostSessionStore.ForgetAsync();
+            recentSession = null;
+            eventManagementView.RenderRecentSession(null);
+            eventManagementView.SetStatus("已從這台電腦移除最近活動連線資訊。", OperationMessageKind.Information);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            eventManagementView.SetStatus($"無法移除本機連線資訊：{exception.Message}", true);
+        }
+    }
+
+    private async void toggleJoinPolicyRequested(object? sender, EventArgs e)
+    {
+        await RunViewOperationAsync(
+            eventManagementView.SetStatus,
+            eventManagementView.SetBusy,
+            async () =>
+            {
+                _ = await client.ChangeJoinPolicyAsync(!isJoinOpen);
+                await RecoverCurrentContextAsync();
+                eventManagementView.SetStatus(isJoinOpen ? "已開放參與者報到。" : "已關閉新參與者報到。");
+            });
     }
 
     private void RenderJoinInfo(EventJoinInfoView joinInfo)
@@ -368,6 +470,15 @@ public partial class HostDashboardForm : Form
             SetPrimaryActionBusy,
             async () =>
             {
+                if (recommendedAction is HostRecommendedAction.PrepareEvent or
+                    HostRecommendedAction.OpenJoining or
+                    HostRecommendedAction.StartEvent or
+                    HostRecommendedAction.CompleteEvent)
+                {
+                    await ExecuteLifecycleActionAsync();
+                    return;
+                }
+
                 switch (currentPrimaryAction)
                 {
                     case QuizPrimaryAction.Start:
@@ -469,9 +580,11 @@ public partial class HostDashboardForm : Form
             hasNext,
             quizActivityView.HasScoredQuestions);
         currentPrimaryAction = presentation.Action;
-        primaryActionButton.Text = presentation.ButtonText;
-        primaryActionButton.Enabled = presentation.IsEnabled;
-        actionGuidanceLabel.Text = presentation.Guidance;
+        var lifecyclePresentation = ResolveLifecyclePresentation();
+        primaryActionButton.Text = lifecyclePresentation?.ButtonText ?? presentation.ButtonText;
+        primaryActionButton.Enabled = connectionState == HostConnectionState.Connected &&
+            (lifecyclePresentation?.IsEnabled ?? presentation.IsEnabled);
+        actionGuidanceLabel.Text = lifecyclePresentation?.Guidance ?? presentation.Guidance;
         actionContextLabel.Text = selected is null
             ? "尚未選擇題庫"
             : $"{(selected.Mode == QuizQuestionMode.Practice ? "PRACTICE" : "SCORED")}｜{selected.Text}";
@@ -484,6 +597,62 @@ public partial class HostDashboardForm : Form
         liveMonitorView.Render(mode, GetQuestionPosition(selected), stateForPresentation, displayMode);
         ScheduleDeadlineRecovery(quizState);
         RenderContext();
+    }
+
+    private (string ButtonText, string Guidance, bool IsEnabled)? ResolveLifecyclePresentation()
+    {
+        return recommendedAction switch
+        {
+            HostRecommendedAction.PrepareEvent => ("完成準備", "確認題庫與現場網路後，將活動標記為就緒。", true),
+            HostRecommendedAction.OpenJoining => ("開放參與者加入", "開放 QR Code 報到，手機將可加入活動。", true),
+            HostRecommendedAction.StartEvent => ("開始正式活動", "開始後才能開放題目作答。", true),
+            HostRecommendedAction.CompleteEvent => ("完成活動", "完成後將關閉加入，且無法再開始新題目。", true),
+            HostRecommendedAction.ViewCompletedEvent => ("活動已完成", "目前僅可查看已保存的結果。", false),
+            _ => null
+        };
+    }
+
+    private async Task ExecuteLifecycleActionAsync()
+    {
+        if (recommendedAction == HostRecommendedAction.PrepareEvent)
+        {
+            _ = await client.ChangeEventStateAsync(EventState.Ready);
+        }
+        else if (recommendedAction == HostRecommendedAction.OpenJoining)
+        {
+            _ = await client.ChangeJoinPolicyAsync(true);
+        }
+        else if (recommendedAction == HostRecommendedAction.StartEvent)
+        {
+            if (MessageBox.Show(
+                    this,
+                    "開始後才能進行正式題目。確定要開始活動嗎？",
+                    "開始活動",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Question) != DialogResult.OK)
+            {
+                return;
+            }
+
+            _ = await client.ChangeEventStateAsync(EventState.Active);
+        }
+        else if (recommendedAction == HostRecommendedAction.CompleteEvent)
+        {
+            if (MessageBox.Show(
+                    this,
+                    "完成後將關閉加入，並且無法再開始新題目。確定嗎？",
+                    "完成活動",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Warning) != DialogResult.OK)
+            {
+                return;
+            }
+
+            _ = await client.ChangeEventStateAsync(EventState.Completed);
+        }
+
+        await RecoverCurrentContextAsync();
+        SetActionStatus("活動狀態已更新。");
     }
 
     private void ScheduleDeadlineRecovery(QuizStateView state)
@@ -613,7 +782,11 @@ public partial class HostDashboardForm : Form
             position,
             quizState.State,
             connectionState,
-            displayMode);
+            displayMode,
+            eventState,
+            recommendedAction,
+            quizState.AnsweredCount,
+            quizState.OnlineCount);
     }
 
     private void navigationButton_Click(object? sender, EventArgs e)
@@ -708,6 +881,9 @@ public partial class HostDashboardForm : Form
         currentEventName = "尚未選擇";
         currentQuizTitle = "尚未選擇";
         displayMode = DisplayMode.Waiting;
+        eventState = EventState.Draft;
+        isJoinOpen = false;
+        recommendedAction = HostRecommendedAction.PrepareEvent;
         eventManagementView.ResetCurrentContext();
         questionBankView.RenderBanks([], null);
         quizActivityView.RenderQuestions([], null);

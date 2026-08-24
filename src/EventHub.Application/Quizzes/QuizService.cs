@@ -21,7 +21,7 @@ public sealed class QuizService(
         CancellationToken cancellationToken)
     {
         await EnsureHostAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
-        _ = await eventService.GetAsync(command.EventId, cancellationToken);
+        await eventService.EnsureNotCompletedAsync(command.EventId, cancellationToken);
 
         var quiz = await quizRepository.GetByEventAsync(command.EventId, cancellationToken);
         if (quiz is null)
@@ -48,6 +48,7 @@ public sealed class QuizService(
         CancellationToken cancellationToken)
     {
         await EnsureHostAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
+        await eventService.EnsureActiveAsync(command.EventId, cancellationToken);
         var question = await GetRequiredQuestionAsync(command.QuestionId, cancellationToken);
         var quiz = await quizRepository.GetQuizAsync(question.QuizId, cancellationToken);
         if (quiz is null || quiz.EventId != command.EventId)
@@ -78,6 +79,7 @@ public sealed class QuizService(
         SubmitQuizAnswerCommand command,
         CancellationToken cancellationToken)
     {
+        await eventService.EnsureActiveAsync(command.EventId, cancellationToken);
         _ = await participantService.ValidateSessionCredentialAsync(
             command.EventId,
             command.ParticipantId,
@@ -134,6 +136,7 @@ public sealed class QuizService(
         CancellationToken cancellationToken)
     {
         await EnsureHostAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
+        await eventService.EnsureActiveAsync(command.EventId, cancellationToken);
         var session = await GetRequiredSessionAsync(command.EventId, command.SessionId, cancellationToken);
         session.Close(timeProvider.GetUtcNow());
         await quizRepository.UpdateSessionAsync(session, cancellationToken);
@@ -145,6 +148,7 @@ public sealed class QuizService(
         QuizHostCommand command,
         CancellationToken cancellationToken)
     {
+        await eventService.EnsureActiveAsync(command.EventId, cancellationToken);
         var result = await scoringService.RevealAnswerAsync(command, cancellationToken);
         await displayService.SetResultModeAsync(command.EventId, cancellationToken);
         return result;

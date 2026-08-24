@@ -16,7 +16,6 @@ public sealed class ParticipantService(
         JoinParticipantCommand command,
         CancellationToken cancellationToken)
     {
-        await eventService.EnsureJoinIsOpenAsync(command.EventId, cancellationToken);
         var sessionToken = string.IsNullOrWhiteSpace(command.SessionToken)
             ? credentialService.GenerateToken()
             : command.SessionToken;
@@ -37,6 +36,10 @@ public sealed class ParticipantService(
             await participantRepository.UpdateAsync(existing, cancellationToken);
             return new JoinParticipantResult(ToSummary(existing, false), sessionToken, false);
         }
+
+        // Closing join blocks new participants, not a known participant recovering with the
+        // same event-scoped credential after refresh, reconnect, or a Host/Server restart.
+        await eventService.EnsureJoinIsOpenAsync(command.EventId, cancellationToken);
 
         var normalizedEmployeeNumber = NormalizeEmployeeNumber(command.EmployeeNumber);
         if (normalizedEmployeeNumber is not null)

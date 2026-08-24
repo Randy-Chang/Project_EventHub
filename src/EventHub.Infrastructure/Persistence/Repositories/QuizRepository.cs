@@ -83,6 +83,15 @@ public sealed class QuizRepository(EventHubDbContext dbContext) : IQuizRepositor
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<QuizQuestionSession>> ListOpenSessionsAsync(
+        CancellationToken cancellationToken)
+    {
+        return await dbContext.QuizQuestionSessions
+            .Where(session => session.State == QuizQuestionState.Open)
+            .OrderBy(session => session.AnswerDeadlineUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task AddSessionAsync(QuizQuestionSession session, CancellationToken cancellationToken)
     {
         dbContext.QuizQuestionSessions.Add(session);

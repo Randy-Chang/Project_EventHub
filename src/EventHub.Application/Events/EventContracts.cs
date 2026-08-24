@@ -4,6 +4,10 @@ namespace EventHub.Application.Events;
 
 public sealed record CreateEventCommand(string Name, DateTimeOffset EventDateUtc);
 
+public sealed record ChangeEventStateCommand(Guid EventId, string HostToken, EventState TargetState);
+
+public sealed record ChangeJoinPolicyCommand(Guid EventId, string HostToken, bool IsJoinOpen);
+
 public sealed record EventSummary(
     Guid Id,
     string Name,

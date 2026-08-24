@@ -55,6 +55,11 @@
       eventName.hidden = false;
       eventIdInput.value = joinInfo.eventId;
       eventIdField.hidden = true;
+      const restored = await restoreExistingSession(joinInfo.eventId);
+      if (restored) {
+        return;
+      }
+
       if (!joinInfo.isJoinOpen) {
         setStatus("此活動目前已停止加入。", true);
         return;
@@ -62,7 +67,6 @@
 
       form.hidden = false;
       setStatus("請填寫資料加入活動", false);
-      await restoreExistingSession(joinInfo.eventId);
     } catch (error) {
       form.hidden = true;
       setStatus(error.message || "找不到此活動，請確認 QR Code 或加入網址是否正確。", true);
@@ -249,7 +253,7 @@
     const storageKey = `eventhub.session.${eventId}`;
     const savedSession = readSession(storageKey);
     if (!savedSession?.participantId || !savedSession?.token) {
-      return;
+      return false;
     }
 
     setStatus("正在恢復活動身份…", false);
@@ -260,7 +264,7 @@
       if (!response.ok) {
         localStorage.removeItem(storageKey);
         setStatus("身份已失效，請重新加入活動。", true);
-        return;
+        return false;
       }
 
       const participant = await response.json();
@@ -270,8 +274,10 @@
       setStatus(
         isRealtimeConnected ? "已重新連線" : "身份已恢復；即時連線恢復中。",
         !isRealtimeConnected);
+      return true;
     } catch {
       setStatus("暫時無法恢復連線，請檢查 Wi-Fi 後重試。", true);
+      return false;
     }
   }
 

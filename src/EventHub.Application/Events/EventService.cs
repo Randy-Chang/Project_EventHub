@@ -52,6 +52,40 @@ public sealed class EventService(
         return ToSummary(eventItem);
     }
 
+    public async Task<EventSummary> ChangeStateAsync(
+        ChangeEventStateCommand command,
+        CancellationToken cancellationToken)
+    {
+        var eventItem = await GetAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
+        switch (command.TargetState)
+        {
+            case EventState.Ready:
+                eventItem.MarkReady();
+                break;
+            case EventState.Active:
+                eventItem.Activate();
+                break;
+            case EventState.Completed:
+                eventItem.Complete();
+                break;
+            default:
+                throw new DomainValidationException("不支援指定的活動狀態轉換。");
+        }
+
+        await eventRepository.UpdateAsync(eventItem, cancellationToken);
+        return ToSummary(eventItem);
+    }
+
+    public async Task<EventSummary> ChangeJoinPolicyAsync(
+        ChangeJoinPolicyCommand command,
+        CancellationToken cancellationToken)
+    {
+        var eventItem = await GetAuthorizedAsync(command.EventId, command.HostToken, cancellationToken);
+        eventItem.SetJoinOpen(command.IsJoinOpen);
+        await eventRepository.UpdateAsync(eventItem, cancellationToken);
+        return ToSummary(eventItem);
+    }
+
     public async Task<EventJoinInfo> GetJoinInfoForHostAsync(
         Guid eventId,
         string hostToken,
@@ -95,10 +129,42 @@ public sealed class EventService(
     public async Task EnsureJoinIsOpenAsync(Guid eventId, CancellationToken cancellationToken)
     {
         var eventItem = await GetRequiredAsync(eventId, cancellationToken);
-        if (!eventItem.IsJoinOpen || eventItem.State is EventState.Ended or EventState.Cancelled)
+        if (!eventItem.IsJoinOpen || eventItem.State == EventState.Completed)
         {
             throw new DomainValidationException("此活動目前未開放加入。");
         }
+    }
+
+    public async Task EnsureActiveAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        var eventItem = await GetRequiredAsync(eventId, cancellationToken);
+        if (eventItem.State != EventState.Active)
+        {
+            throw new DomainValidationException("活動必須處於進行中才能開始題目。");
+        }
+    }
+
+    public async Task EnsureNotCompletedAsync(Guid eventId, CancellationToken cancellationToken)
+    {
+        var eventItem = await GetRequiredAsync(eventId, cancellationToken);
+        if (eventItem.State == EventState.Completed)
+        {
+            throw new DomainValidationException("已完成的活動不可再變更 Quiz 內容。");
+        }
+    }
+
+    private async Task<DomainEvent> GetAuthorizedAsync(
+        Guid eventId,
+        string hostToken,
+        CancellationToken cancellationToken)
+    {
+        var eventItem = await GetRequiredAsync(eventId, cancellationToken);
+        if (!credentialService.Matches(hostToken, eventItem.HostCredentialHash))
+        {
+            throw new UnauthorizedAccessException("Host credential 無效。");
+        }
+
+        return eventItem;
     }
 
     private async Task<DomainEvent> GetRequiredAsync(Guid eventId, CancellationToken cancellationToken)
@@ -125,7 +191,7 @@ public sealed class EventService(
             eventItem.Name,
             eventItem.JoinCode,
             joinUrlBuilder.Build(eventItem.JoinCode),
-            eventItem.IsJoinOpen && eventItem.State is not (EventState.Ended or EventState.Cancelled),
+            eventItem.IsJoinOpen && eventItem.State != EventState.Completed,
             joinUrlBuilder.IsLoopback);
     }
 }

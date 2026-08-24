@@ -23,6 +23,10 @@ public interface IEventClient
     Task ParticipantCountUpdated(ParticipantCountNotification notification);
 
     Task DisplayModeChanged(DisplayModeChangedNotification notification);
+
+    Task EventLifecycleChanged(EventLifecycleChangedNotification notification);
+
+    Task EventJoinPolicyChanged(EventJoinPolicyChangedNotification notification);
 }
 
 public sealed record QuestionStartedNotification(
@@ -48,3 +52,7 @@ public sealed record LeaderboardUpdatedNotification(Guid SessionId);
 public sealed record ParticipantCountNotification(Guid EventId, int ParticipantCount);
 
 public sealed record DisplayModeChangedNotification(Guid EventId, DisplayMode Mode);
+
+public sealed record EventLifecycleChangedNotification(Guid EventId, EventState State);
+
+public sealed record EventJoinPolicyChangedNotification(Guid EventId, bool IsJoinOpen);

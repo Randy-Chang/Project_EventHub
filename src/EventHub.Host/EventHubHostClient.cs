@@ -92,6 +92,27 @@ internal sealed class EventHubHostClient : IAsyncDisposable
     public Task<EventJoinInfoView> GetJoinInfoAsync(CancellationToken cancellationToken = default) =>
         GetAsync<EventJoinInfoView>($"api/v1/events/{eventId:D}/join-info", true, cancellationToken);
 
+    public Task<HostSessionSnapshotView> GetHostSessionAsync(CancellationToken cancellationToken = default) =>
+        GetAsync<HostSessionSnapshotView>($"api/v1/events/{eventId:D}/host-session", true, cancellationToken);
+
+    public Task<EventView> ChangeEventStateAsync(
+        EventState state,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<EventView>(
+            HttpMethod.Put,
+            $"api/v1/events/{eventId:D}/state",
+            new { state },
+            cancellationToken);
+
+    public Task<EventView> ChangeJoinPolicyAsync(
+        bool isJoinOpen,
+        CancellationToken cancellationToken = default) =>
+        SendJsonAsync<EventView>(
+            HttpMethod.Put,
+            $"api/v1/events/{eventId:D}/join-policy",
+            new { isJoinOpen },
+            cancellationToken);
+
     public Task<List<ParticipantView>> GetParticipantsAsync(CancellationToken cancellationToken = default) =>
         GetAsync<List<ParticipantView>>($"api/v1/events/{eventId:D}/participants", true, cancellationToken);
 
@@ -216,6 +237,8 @@ internal sealed class EventHubHostClient : IAsyncDisposable
         connection.On<LeaderboardUpdatedNotification>("LeaderboardUpdated", _ => LeaderboardRefreshRequested?.Invoke());
         connection.On<DisplayModeChangedNotification>("DisplayModeChanged", notification =>
             DisplayModeChanged?.Invoke(notification.Mode));
+        connection.On<object>("EventLifecycleChanged", _ => RecoveryRequested?.Invoke());
+        connection.On<object>("EventJoinPolicyChanged", _ => RecoveryRequested?.Invoke());
         connection.Reconnecting += _ =>
         {
             ConnectionStateChanged?.Invoke(HostConnectionState.Reconnecting);

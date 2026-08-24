@@ -100,7 +100,20 @@ public sealed class HostDashboardLayoutTests
 
         Assert.IsType<Button>(primaryAction);
         Assert.False(primaryAction.Enabled);
-        Assert.Equal("請先選擇題庫", primaryAction.Text);
+        Assert.Equal("完成準備", primaryAction.Text);
+    }
+
+    [Fact]
+    public void EventView_ExposesSecondaryJoinPolicyToggle()
+    {
+        using var form = new HostDashboardForm();
+
+        var toggle = Assert.IsType<Button>(Assert.Single(
+            form.Controls.Find("toggleJoinPolicyButton", true)));
+
+        Assert.False(toggle.Enabled);
+        Assert.Equal("開放報到", toggle.Text);
+        Assert.True(toggle.MinimumSize.Height >= 40);
     }
 
     [Fact]
