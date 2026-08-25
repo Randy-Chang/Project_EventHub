@@ -44,13 +44,12 @@ Solution 另包含 `EventHub.Domain`、`EventHub.Application`、`EventHub.Infras
 
 ## Documentation
 
+- [文件導覽](docs/README.md)
 - [完全第一次使用 EventHub](docs/GettingStarted.md)
-- [EventHub 基礎網路設定](docs/NetworkSetup.md)
 - [主持人 Host 操作手冊](docs/HostOperation.md)
+- [EventHub 基礎網路設定](docs/NetworkSetup.md)
 - [症狀式故障排除](docs/Troubleshooting.md)
-- [系統架構提案](docs/ARCHITECTURE.md)
-- [既有完整功能說明](docs/USER_GUIDE.md)
-- [既有 LAN 測試指南](docs/LAN_TEST_GUIDE.md)
+- [目前系統架構](docs/ARCHITECTURE.md)
 
 ## 專案結構
 
@@ -70,4 +69,4 @@ tests/
 └─ EventHub.Host.Tests
 ```
 
-目前 Repository 沒有 Publish Profile、安裝程式或防火牆設定 Script。支援的開發執行方式是 Visual Studio 2022，或安裝 .NET 8 SDK 後使用 `dotnet run`。SQLite 預設資料位於 Server Content Root 下的 `Data/eventhub.db`。
+目前 Repository 沒有 Publish Profile 或安裝程式。支援的開發執行方式是 Visual Studio 2022，或安裝 .NET 8 SDK 後使用 `dotnet run`；Windows 防火牆可使用 `scripts/Configure-EventHubFirewall.ps1` 設定。SQLite 預設資料位於 Server Content Root 下的 `Data/eventhub.db`。
