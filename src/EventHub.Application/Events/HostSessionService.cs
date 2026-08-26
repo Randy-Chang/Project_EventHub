@@ -104,7 +104,7 @@ public sealed class HostSessionService(
             QuizQuestionState.Closed => HostRecommendedAction.RevealAnswer,
             QuizQuestionState.Revealed => HostRecommendedAction.ContinueQuiz,
             _ when questionBanks.Count > 0 => HostRecommendedAction.StartQuestion,
-            _ => HostRecommendedAction.CompleteEvent
+            _ => HostRecommendedAction.StartQuestion
         };
     }
 }

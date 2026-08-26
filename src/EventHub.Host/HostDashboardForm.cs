@@ -188,7 +188,7 @@ public partial class HostDashboardForm : Form
         isJoinOpen = snapshot.Event.IsJoinOpen;
         recommendedAction = snapshot.RecommendedAction;
         RenderJoinInfo(snapshot.JoinInfo);
-        eventManagementView.SetJoinPolicyAvailability(eventState is EventState.Ready or EventState.Active);
+        eventManagementView.SetJoinPolicyAvailability(eventState != EventState.Completed);
         var participantItems = snapshot.Participants;
         participants.Clear();
         foreach (var participant in participantItems)
@@ -295,6 +295,11 @@ public partial class HostDashboardForm : Form
             eventManagementView.SetBusy,
             async () =>
             {
+                if (!isJoinOpen && eventState == EventState.Draft)
+                {
+                    _ = await client.ChangeEventStateAsync(EventState.Ready);
+                }
+
                 _ = await client.ChangeJoinPolicyAsync(!isJoinOpen);
                 await RecoverCurrentContextAsync();
                 eventManagementView.SetStatus(isJoinOpen ? "已開放參與者報到。" : "已關閉新參與者報到。");

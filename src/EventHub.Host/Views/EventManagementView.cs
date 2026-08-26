@@ -15,6 +15,8 @@ internal partial class EventManagementView : UserControl
 {
     private const int EventHubServerPort = 5000;
     private string currentJoinCode = string.Empty;
+    private bool isBusy;
+    private bool isJoinPolicyAvailable;
 
     public EventManagementView()
     {
@@ -99,7 +101,8 @@ internal partial class EventManagementView : UserControl
 
     public void SetJoinPolicyAvailability(bool enabled)
     {
-        toggleJoinPolicyButton.Enabled = enabled;
+        isJoinPolicyAvailable = enabled;
+        toggleJoinPolicyButton.Enabled = enabled && !isBusy;
     }
 
     public void RenderJoinInfo(EventJoinInfoView joinInfo, Image qrCode)
@@ -113,7 +116,6 @@ internal partial class EventManagementView : UserControl
         joinPolicyValueLabel.Text = joinInfo.IsJoinOpen ? "開放中" : "已關閉";
         joinPolicyValueLabel.ForeColor = joinInfo.IsJoinOpen ? Color.DarkGreen : Color.Firebrick;
         toggleJoinPolicyButton.Text = joinInfo.IsJoinOpen ? "關閉報到" : "開放報到";
-        toggleJoinPolicyButton.Enabled = true;
         joinCodeValueLabel.Text = string.Join(" ", joinInfo.JoinCode.ToCharArray());
         mobileJoinTitleLabel.Text = "STEP 4　手機加入　✓ 加入資訊已準備";
         joinUrlTextBox.Text = joinInfo.JoinUrl;
@@ -150,6 +152,7 @@ internal partial class EventManagementView : UserControl
         joinPolicyValueLabel.Text = "尚未開放";
         joinPolicyValueLabel.ForeColor = SystemColors.ControlText;
         toggleJoinPolicyButton.Text = "開放報到";
+        isJoinPolicyAvailable = false;
         toggleJoinPolicyButton.Enabled = false;
         eventSetupTitleLabel.Text = "STEP 2　建立或連線活動　○ 尚未完成";
         mobileJoinTitleLabel.Text = "STEP 4　手機加入　○ 尚未準備";
@@ -237,11 +240,13 @@ internal partial class EventManagementView : UserControl
 
     public void SetBusy(bool isBusy)
     {
+        this.isBusy = isBusy;
         createEventButton.Enabled = !isBusy;
         connectButton.Enabled = !isBusy;
         refreshLanAddressesButton.Enabled = !isBusy;
         testConnectionButton.Enabled = !isBusy;
         installFirewallRuleButton.Enabled = !isBusy;
+        toggleJoinPolicyButton.Enabled = !isBusy && isJoinPolicyAvailable;
     }
 
     protected override void Dispose(bool disposing)

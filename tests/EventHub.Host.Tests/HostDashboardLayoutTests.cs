@@ -117,6 +117,29 @@ public sealed class HostDashboardLayoutTests
     }
 
     [Fact]
+    public void EventView_JoinPolicyToggleTracksAvailabilityAcrossBusyState()
+    {
+        using var form = new HostDashboardForm();
+        var eventView = Assert.Single(form.Controls.Find("eventManagementView", true));
+        var toggle = Assert.IsType<Button>(Assert.Single(
+            eventView.Controls.Find("toggleJoinPolicyButton", true)));
+        var setAvailability = eventView.GetType().GetMethod("SetJoinPolicyAvailability");
+        var setBusy = eventView.GetType().GetMethod("SetBusy");
+
+        Assert.NotNull(setAvailability);
+        Assert.NotNull(setBusy);
+
+        setAvailability.Invoke(eventView, [true]);
+        Assert.True(toggle.Enabled);
+
+        setBusy.Invoke(eventView, [true]);
+        Assert.False(toggle.Enabled);
+
+        setBusy.Invoke(eventView, [false]);
+        Assert.True(toggle.Enabled);
+    }
+
+    [Fact]
     public void EmptyQuizState_DoesNotLookLikeAnActiveOfficialQuestion()
     {
         using var form = new HostDashboardForm();
